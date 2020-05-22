@@ -1,15 +1,23 @@
 # 概述
+
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;我们部署的版本是此篇文章发布时ElastAlert（V0.2.1）、ElastAlert server（3.0.0-beta.0） 、elastalert-kibana-plugin（1.1.0）的最新版本。es和kibana的版本是7.2.0。ES和kibana部署不是本篇的重点，这里不做介绍。
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;入正题之前得先说下ES，Elasticsearch 是一个分布式、可扩展、实时的搜索与数据分析引擎。 它能从项目一开始就赋予你的数据以搜索、分析和探索的能力。我们容器服务的日志现在大多数都入到了qbus，然后可以用es消费，通过kibana方便的查看日志。但是负责es的同事和我们都没有支持日志告警，目前是一个短板。X-Pack提供了报警组件Alert，但是这个功能是需要付费，ElastAlert能够完美替代Alert提供的所有功能。ElastAlert目前有6k+star，维护较好很受欢迎，使用python编写，V0.2.0以后使用python3，python2不再维护，以致在虚机物理机部署的坑很多，最终也是以容器的方式成功搭建。因为公司es之后要升级到7.2版本，ElastAlertV0.2.1（最新版本）才对es7支持的很好，elastalert-kibana-plugin最新版本才支持kibana7。
+
 # 相关组件
+
 * 告警服务ElastAlert，版本V0.2.1
+
 * 展示插件elastalert-kibana-plugin，kibana安装这个组件后，用户可以通过kibana管理告警规则（增、删、改、查，及测试）。
+
 * api服务ElastAlert  server，暴露restf api提供管理告警规则的能力，与elastalert-kibana-plugin配合使用。这个服务启动时同时启动ElastAlert。
 
 elastalert-kibana-plugin对ES6.3开始提供支持，公司目前使用的是ES6.2，之后要升级到ES7，所以ElastAlert用V0.2.1，ElastAlert  server 3.0.0-beta.0,elastalert-kibana-plugin 1.1.0。
+
 # 搭建
+
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ElastAlert V0.2.1需要python3，目前我们使用linux内核都会默认装python2，安装python3后，使用混合环境安装ElastAlert 很多依赖装不成功，亦或装成功后模块有找不到，所以最终打算使用docker multi stage build方式构建ElastAlert  server镜像，以容器的方式启动。
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;官网上提供了ElastAlert  server镜像构建方式，但很久不维护，还是使用python2构建的老的版本。我们需要重新构建。
+
 1. git clone [https://github.com/bitsensor/elastalert.git](https://github.com/bitsensor/elastalert.git) && cd elastalert  修改  Dockerfile。这一步很重要下载的是elastalert server，不是elastalert，elastalert只需在Dockerfile中指定版本，直接下载zip包。
 
 ```
@@ -82,12 +90,11 @@ docker run -d -p 3030:3030 -p 3333:3333 \
 
 通过docker logs elastalert -f 查看日之日，如果报错，指定告警级别为dubug查看错误信息
 
-4.  主要的配置文件：
+4. 主要的配置文件：
 
 * elastalert.yaml：elastalert配置文件，es相关配置
 
 ```
-
 # This is the folder that contains the rule yaml files
 # Any .yaml file will be loaded as a rule
 rules_folder: rules
@@ -120,7 +127,6 @@ alert_time_limit:
 * config.json：elastalert server的配置文件
 
 ```
-
 {
   "appName": "elastalert-server",
   "port": 3030,
@@ -146,7 +152,6 @@ alert_time_limit:
 * rules：所有报警规则的配置文件都存在着,test-rule.yaml
 
 ```
-
 es_host: 10.216.6.76
 
 es_port: 9200
