@@ -109,16 +109,3 @@ friends: [
         href: "https://developer.apple.com/"
     }
 ]
-
-# 添加category内容
-permalink: /:categories/:title/
-
-# List of links in the navigation bar
-navbar-links:
-  主页: "https://zhifei92.github.io"
-  分类: "https://zhifei92.github.io/categories/"
-  标签: "https://zhifei92.github.io/tags/"
-  项目:
-    - Learn markdown: "http://www.markdowntutorial.com/"
-  关于我: "aboutme"
-  搜索: "search"
