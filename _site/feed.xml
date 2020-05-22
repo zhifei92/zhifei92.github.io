@@ -5,8 +5,8 @@
     <description>这是张志飞的个人博客，目前刚开始使用，希望和大家分享一些有价值的文章，一起交流学习</description>
     <link>http://localhost:5555/</link>
     <atom:link href="http://localhost:5555/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Sat, 23 May 2020 03:37:26 +0800</pubDate>
-    <lastBuildDate>Sat, 23 May 2020 03:37:26 +0800</lastBuildDate>
+    <pubDate>Sat, 23 May 2020 03:40:39 +0800</pubDate>
+    <lastBuildDate>Sat, 23 May 2020 03:40:39 +0800</lastBuildDate>
     <generator>Jekyll v4.0.1</generator>
     
       <item>
@@ -1214,9 +1214,13 @@ ENTRYPOINT [&quot;npm&quot;, &quot;start&quot;]
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
 
 &lt;ol&gt;
-  &lt;li&gt;制作镜像：docker build –no-cache  -t   image-name  .
-注：build的时候可能会报layer找不到的错误，再build一次就可以了（再次build时不要加–no-cache）（目前没有细跟原因）&lt;/li&gt;
-  &lt;li&gt;运行&lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;制作镜像：docker build –no-cache  -t   image-name  .
+注：build的时候可能会报layer找不到的错误，再build一次就可以了（再次build时不要加–no-cache）（目前没有细跟原因）&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;运行&lt;/p&gt;
+  &lt;/li&gt;
 &lt;/ol&gt;
 
 &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;docker run -d -p 3030:3030 -p 3333:3333 \
@@ -1231,20 +1235,24 @@ ENTRYPOINT [&quot;npm&quot;, &quot;start&quot;]
 
 &lt;p&gt;通过docker logs elastalert -f 查看日之日，如果报错，指定告警级别为dubug查看错误信息&lt;/p&gt;
 &lt;ol&gt;
-  &lt;li&gt;主要的配置文件：
-    &lt;ul&gt;
-      &lt;li&gt;elastalert.yaml：elastalert配置文件，es相关配置
-        &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# This is the folder that contains the rule yaml files
+  &lt;li&gt;主要的配置文件：&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;elastalert.yaml：elastalert配置文件，es相关配置&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# This is the folder that contains the rule yaml files
 # Any .yaml file will be loaded as a rule
 rules_folder: rules
 # How often ElastAlert will query Elasticsearch
 # The unit can be anything from weeks to seconds
 run_every:
-minutes: 1
+  minutes: 1
 # ElastAlert will buffer results from the most recent
 # period of time, in case some log sources are not in real time
 buffer_time:
-minutes: 15
+  minutes: 15
 # The Elasticsearch hostname for metadata writeback
 # Note that every rule can have its own Elasticsearch host
 es_host: 10.216.6.76
@@ -1260,94 +1268,89 @@ writeback_index: hihi_test
 # If an alert fails for some reason, ElastAlert will retry
 # sending the alert until this time period has elapsed
 alert_time_limit:
-days: 2
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;        &lt;/div&gt;
-      &lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
+  days: 2
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;config.json：elastalert server的配置文件&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;
+{
+  &quot;appName&quot;: &quot;elastalert-server&quot;,
+  &quot;port&quot;: 3030,
+  &quot;wsport&quot;: 3333,
+  &quot;elastalertPath&quot;: &quot;/opt/elastalert&quot;,
+  &quot;verbose&quot;: false,
+  &quot;es_debug&quot;: false,
+  &quot;debug&quot;: false,
+  &quot;rulesPath&quot;: {
+    &quot;relative&quot;: true,
+    &quot;path&quot;: &quot;/rules&quot;             # 通过kibana插件创建的配置文件都存在这
+  },
+  &quot;templatesPath&quot;: {
+    &quot;relative&quot;: true,
+    &quot;path&quot;: &quot;/rule_templates&quot;
+  },
+  &quot;es_host&quot;: &quot;10.216.6.76&quot;,      # es ip
+  &quot;es_port&quot;: 9200,               # es 端口
+  &quot;writeback_index&quot;: &quot;hihi_test&quot; # 监控的esindex
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;rules：所有报警规则的配置文件都存在着,test-rule.yaml&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;es_host: 10.216.6.76
+
+es_port: 9200
+
+es_username: tfmaq
+es_password: 4152adc2a11cb182c014bc952xxx
+name: Example frequency rule 2
+
+type: frequency
+
+index: hihi-test
+
+num_events: 5
+
+timeframe:
+  hours: 4
+
+filter:
+- query:
+   query_string:
+     query: &quot;type:access&quot;  # 查询规则根据日志，自行配置
+     query: &quot;message:error&quot;  #
+
+alert:
+- &quot;email&quot;
+
+email:
+- &quot;zhangzhifei@360.cn&quot; 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;详细的配置规则大家看官方文档，照着我这么配置先把告警发出来&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;安装kibana&lt;/li&gt;
 &lt;/ol&gt;
 
-&lt;ul&gt;
-  &lt;li&gt;config.json：elastalert server的配置文件
-```&lt;/li&gt;
-&lt;/ul&gt;
+&lt;p&gt;按照网关按即可，版本要对上&lt;a href=&quot;https://github.com/bitsensor/elastalert-kibana-plugin&quot;&gt;https://github.com/bitsensor/elastalert-kibana-plugin&lt;/a&gt;&lt;/p&gt;
 
-&lt;p&gt;{
-  “appName”: “elastalert-server”,
-  “port”: 3030,
-  “wsport”: 3333,
-  “elastalertPath”: “/opt/elastalert”,
-  “verbose”: false,
-  “es_debug”: false,
-  “debug”: false,
-  “rulesPath”: {
-    “relative”: true,
-    “path”: “/rules”             # 通过kibana插件创建的配置文件都存在这
-  },
-  “templatesPath”: {
-    “relative”: true,
-    “path”: “/rule_templates”
-  },
-  “es_host”: “10.216.6.76”,      # es ip
-  “es_port”: 9200,               # es 端口
-  “writeback_index”: “hihi_test” # 监控的esindex
-}&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;
-* rules：所有报警规则的配置文件都存在着,test-rule.yaml
+&lt;h1 id=&quot;kibana展示&quot;&gt;kibana展示&lt;/h1&gt;
 
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;es_host: 10.216.6.76&lt;/p&gt;
-
-&lt;p&gt;es_port: 9200&lt;/p&gt;
-
-&lt;p&gt;es_username: tfmaq
-es_password: 4152adc2a11cb182c014bc952xxx
-name: Example frequency rule 2&lt;/p&gt;
-
-&lt;p&gt;type: frequency&lt;/p&gt;
-
-&lt;p&gt;index: hihi-test&lt;/p&gt;
-
-&lt;p&gt;num_events: 5&lt;/p&gt;
-
-&lt;p&gt;timeframe:
-  hours: 4&lt;/p&gt;
-
-&lt;p&gt;filter:&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;query:
- query_string:
-   query: “type:access”  # 查询规则根据日志，自行配置
-   query: “message:error”  #&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;alert:&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;“email”&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;email:&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;“zhangzhifei@360.cn”
-```&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;详细的配置规则大家看官方文档，照着我这么配置先把告警发出来&lt;/p&gt;
-    &lt;ol&gt;
-      &lt;li&gt;安装kibana
-按照网关按即可，版本要对上&lt;a href=&quot;https://github.com/bitsensor/elastalert-kibana-plugin&quot;&gt;https://github.com/bitsensor/elastalert-kibana-plugin&lt;/a&gt;
-        &lt;h1 id=&quot;kibana展示&quot;&gt;kibana展示&lt;/h1&gt;
-        &lt;p&gt;kibana插件如下：
+&lt;p&gt;kibana插件如下：
 &lt;img src=&quot;https://upload-images.jianshu.io/upload_images/14774548-28d28f3c2e2a7876.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240&quot; alt=&quot;image.png&quot; /&gt;
 custom_frequency是启服务之前创建的配置文件，test和test2是通过kibana dashboard创建。用户可以通过“创建”-“测试”-“保存”这一流程新建alert rules 和我们的hulk容器上的自定义告警流程差不多
 &lt;img src=&quot;https://upload-images.jianshu.io/upload_images/14774548-ca24e86e65dfb74a.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240&quot; alt=&quot;image.png&quot; /&gt;&lt;/p&gt;
-        &lt;h1 id=&quot;参考&quot;&gt;参考&lt;/h1&gt;
-        &lt;p&gt;&lt;a href=&quot;https://github.com/bitsensor/elastalert&quot;&gt;https://github.com/bitsensor/elastalert&lt;/a&gt;&lt;/p&gt;
-      &lt;/li&gt;
-    &lt;/ol&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
+&lt;h1 id=&quot;参考&quot;&gt;参考&lt;/h1&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://github.com/bitsensor/elastalert&quot;&gt;https://github.com/bitsensor/elastalert&lt;/a&gt;&lt;/p&gt;
 
 &lt;p&gt;&lt;a href=&quot;https://github.com/bitsensor/elastalert-kibana-plugin&quot;&gt;https://github.com/bitsensor/elastalert-kibana-plugin&lt;/a&gt;&lt;/p&gt;
 

@@ -1,4 +1,4 @@
-<h1 id="概述">概述</h1>
+I"�'<h1 id="概述">概述</h1>
 <p>        我们部署的版本是此篇文章发布时ElastAlert（V0.2.1）、ElastAlert server（3.0.0-beta.0） 、elastalert-kibana-plugin（1.1.0）的最新版本。es和kibana的版本是7.2.0。ES和kibana部署不是本篇的重点，这里不做介绍。
         入正题之前得先说下ES，Elasticsearch 是一个分布式、可扩展、实时的搜索与数据分析引擎。 它能从项目一开始就赋予你的数据以搜索、分析和探索的能力。我们容器服务的日志现在大多数都入到了qbus，然后可以用es消费，通过kibana方便的查看日志。但是负责es的同事和我们都没有支持日志告警，目前是一个短板。X-Pack提供了报警组件Alert，但是这个功能是需要付费，ElastAlert能够完美替代Alert提供的所有功能。ElastAlert目前有6k+star，维护较好很受欢迎，使用python编写，V0.2.0以后使用python3，python2不再维护，以致在虚机物理机部署的坑很多，最终也是以容器的方式成功搭建。因为公司es之后要升级到7.2版本，ElastAlertV0.2.1（最新版本）才对es7支持的很好，elastalert-kibana-plugin最新版本才支持kibana7。</p>
 <h1 id="相关组件">相关组件</h1>
@@ -88,24 +88,20 @@ ENTRYPOINT ["npm", "start"]
 
 <p>通过docker logs elastalert -f 查看日之日，如果报错，指定告警级别为dubug查看错误信息</p>
 <ol>
-  <li>主要的配置文件：</li>
-</ol>
-
-<ul>
-  <li>elastalert.yaml：elastalert配置文件，es相关配置</li>
-</ul>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># This is the folder that contains the rule yaml files
+  <li>主要的配置文件：
+    <ul>
+      <li>elastalert.yaml：elastalert配置文件，es相关配置
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># This is the folder that contains the rule yaml files
 # Any .yaml file will be loaded as a rule
 rules_folder: rules
 # How often ElastAlert will query Elasticsearch
 # The unit can be anything from weeks to seconds
 run_every:
-  minutes: 1
+minutes: 1
 # ElastAlert will buffer results from the most recent
 # period of time, in case some log sources are not in real time
 buffer_time:
-  minutes: 15
+minutes: 15
 # The Elasticsearch hostname for metadata writeback
 # Note that every rule can have its own Elasticsearch host
 es_host: 10.216.6.76
@@ -121,89 +117,94 @@ writeback_index: hihi_test
 # If an alert fails for some reason, ElastAlert will retry
 # sending the alert until this time period has elapsed
 alert_time_limit:
-  days: 2
-</code></pre></div></div>
-
-<ul>
-  <li>config.json：elastalert server的配置文件</li>
-</ul>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
-{
-  "appName": "elastalert-server",
-  "port": 3030,
-  "wsport": 3333,
-  "elastalertPath": "/opt/elastalert",
-  "verbose": false,
-  "es_debug": false,
-  "debug": false,
-  "rulesPath": {
-    "relative": true,
-    "path": "/rules"             # 通过kibana插件创建的配置文件都存在这
-  },
-  "templatesPath": {
-    "relative": true,
-    "path": "/rule_templates"
-  },
-  "es_host": "10.216.6.76",      # es ip
-  "es_port": 9200,               # es 端口
-  "writeback_index": "hihi_test" # 监控的esindex
-}
-</code></pre></div></div>
-
-<ul>
-  <li>rules：所有报警规则的配置文件都存在着,test-rule.yaml</li>
-</ul>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>es_host: 10.216.6.76
-
-es_port: 9200
-
-es_username: tfmaq
-es_password: 4152adc2a11cb182c014bc952xxx
-name: Example frequency rule 2
-
-type: frequency
-
-index: hihi-test
-
-num_events: 5
-
-timeframe:
-  hours: 4
-
-filter:
-- query:
-   query_string:
-     query: "type:access"  # 查询规则根据日志，自行配置
-     query: "message:error"  #
-
-alert:
-- "email"
-
-email:
-- "zhangzhifei@360.cn" 
-</code></pre></div></div>
-
-<ul>
-  <li>详细的配置规则大家看官方文档，照着我这么配置先把告警发出来</li>
-</ul>
-
-<ol>
-  <li>安装kibana</li>
+days: 2
+</code></pre></div>        </div>
+      </li>
+    </ul>
+  </li>
 </ol>
 
-<p>按照网关按即可，版本要对上<a href="https://github.com/bitsensor/elastalert-kibana-plugin">https://github.com/bitsensor/elastalert-kibana-plugin</a></p>
+<ul>
+  <li>config.json：elastalert server的配置文件
+```</li>
+</ul>
 
-<h1 id="kibana展示">kibana展示</h1>
+<p>{
+  “appName”: “elastalert-server”,
+  “port”: 3030,
+  “wsport”: 3333,
+  “elastalertPath”: “/opt/elastalert”,
+  “verbose”: false,
+  “es_debug”: false,
+  “debug”: false,
+  “rulesPath”: {
+    “relative”: true,
+    “path”: “/rules”             # 通过kibana插件创建的配置文件都存在这
+  },
+  “templatesPath”: {
+    “relative”: true,
+    “path”: “/rule_templates”
+  },
+  “es_host”: “10.216.6.76”,      # es ip
+  “es_port”: 9200,               # es 端口
+  “writeback_index”: “hihi_test” # 监控的esindex
+}</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+* rules：所有报警规则的配置文件都存在着,test-rule.yaml
 
-<p>kibana插件如下：
+</code></pre></div></div>
+<p>es_host: 10.216.6.76</p>
+
+<p>es_port: 9200</p>
+
+<p>es_username: tfmaq
+es_password: 4152adc2a11cb182c014bc952xxx
+name: Example frequency rule 2</p>
+
+<p>type: frequency</p>
+
+<p>index: hihi-test</p>
+
+<p>num_events: 5</p>
+
+<p>timeframe:
+  hours: 4</p>
+
+<p>filter:</p>
+<ul>
+  <li>query:
+ query_string:
+   query: “type:access”  # 查询规则根据日志，自行配置
+   query: “message:error”  #</li>
+</ul>
+
+<p>alert:</p>
+<ul>
+  <li>“email”</li>
+</ul>
+
+<p>email:</p>
+<ul>
+  <li>
+    <p>“zhangzhifei@360.cn”
+```</p>
+  </li>
+  <li>
+    <p>详细的配置规则大家看官方文档，照着我这么配置先把告警发出来</p>
+    <ol>
+      <li>安装kibana
+按照网关按即可，版本要对上<a href="https://github.com/bitsensor/elastalert-kibana-plugin">https://github.com/bitsensor/elastalert-kibana-plugin</a>
+        <h1 id="kibana展示">kibana展示</h1>
+        <p>kibana插件如下：
 <img src="https://upload-images.jianshu.io/upload_images/14774548-28d28f3c2e2a7876.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt="image.png" />
 custom_frequency是启服务之前创建的配置文件，test和test2是通过kibana dashboard创建。用户可以通过“创建”-“测试”-“保存”这一流程新建alert rules 和我们的hulk容器上的自定义告警流程差不多
 <img src="https://upload-images.jianshu.io/upload_images/14774548-ca24e86e65dfb74a.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt="image.png" /></p>
-<h1 id="参考">参考</h1>
-
-<p><a href="https://github.com/bitsensor/elastalert">https://github.com/bitsensor/elastalert</a></p>
+        <h1 id="参考">参考</h1>
+        <p><a href="https://github.com/bitsensor/elastalert">https://github.com/bitsensor/elastalert</a></p>
+      </li>
+    </ol>
+  </li>
+</ul>
 
 <p><a href="https://github.com/bitsensor/elastalert-kibana-plugin">https://github.com/bitsensor/elastalert-kibana-plugin</a></p>
 
@@ -211,3 +212,4 @@ custom_frequency是启服务之前创建的配置文件，test和test2是通过k
 
 <p><a href="https://elastalert.readthedocs.io/en/latest/">https://elastalert.readthedocs.io/en/latest/</a></p>
 
+:ET

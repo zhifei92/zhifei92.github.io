@@ -65,6 +65,7 @@ ENTRYPOINT ["npm", "start"]
 
 2. 制作镜像：docker build --no-cache  -t   image-name  .
 注：build的时候可能会报layer找不到的错误，再build一次就可以了（再次build时不要加--no-cache）（目前没有细跟原因）
+
 3. 运行
 
 ```
@@ -80,7 +81,9 @@ docker run -d -p 3030:3030 -p 3333:3333 \
 
 通过docker logs elastalert -f 查看日之日，如果报错，指定告警级别为dubug查看错误信息
 4.  主要的配置文件：
+
 * elastalert.yaml：elastalert配置文件，es相关配置
+
 ```
 # This is the folder that contains the rule yaml files
 # Any .yaml file will be loaded as a rule
@@ -112,6 +115,7 @@ alert_time_limit:
 ```
 
 * config.json：elastalert server的配置文件
+
 ```
 
 {
@@ -170,14 +174,19 @@ email:
 ```
 
 * 详细的配置规则大家看官方文档，照着我这么配置先把告警发出来
+
 5. 安装kibana
+
 按照网关按即可，版本要对上[https://github.com/bitsensor/elastalert-kibana-plugin](https://github.com/bitsensor/elastalert-kibana-plugin)
+
 # kibana展示
+
 kibana插件如下：
 ![image.png](https://upload-images.jianshu.io/upload_images/14774548-28d28f3c2e2a7876.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
 custom_frequency是启服务之前创建的配置文件，test和test2是通过kibana dashboard创建。用户可以通过“创建”-“测试”-“保存”这一流程新建alert rules 和我们的hulk容器上的自定义告警流程差不多
 ![image.png](https://upload-images.jianshu.io/upload_images/14774548-ca24e86e65dfb74a.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
 # 参考
+
 [https://github.com/bitsensor/elastalert](https://github.com/bitsensor/elastalert)
 
 [https://github.com/bitsensor/elastalert-kibana-plugin](https://github.com/bitsensor/elastalert-kibana-plugin)
