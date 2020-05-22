@@ -74,8 +74,9 @@ docker run -d -p 3030:3030 -p 3333:3333 \
     --net="host" \
     --name elastalert images-name
 ```
-通过docker logs elastalert -f 查看日之日，如果报错，指定告警级别为dubug查看错误信息
-4.  主要的配置文件：
+ 通过docker logs elastalert -f 查看日之日，如果报错，指定告警级别为dubug查看错误信息
+ 
+4. 主要的配置文件：
 * elastalert.yaml：elastalert配置文件，es相关配置
 ```
 # This is the folder that contains the rule yaml files
