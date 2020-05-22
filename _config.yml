@@ -2,16 +2,16 @@
 title: My Blog
 SEOTitle: 我的博客 | My Blog
 header-img: img/post-bg-desk.jpg
-email: 暂无
-description: "写一句你想写的话"
+email: 13641019076@163.com
+description: "其中一只裸熊"
 keyword: "我的博客"
-url: "http://name.github.io"          # your host, for absolute URL
+url: "http://zhifei92.github.io"          # your host, for absolute URL
 baseurl: ""      # for example, '/blog' if your blog hosted on 'host/blog'
-github_repo: "https://github.com/name/name.github.io.git" # you code repository
+github_repo: "https://github.com/zhifei92/zhifei92.github.io.git" # you code repository
 
 # Sidebar settings
 sidebar: true                           # whether or not using Sidebar.
-sidebar-about-description: "苟利国家生死以，岂因祸福避趋之~"
+sidebar-about-description: "三更灯火五更鸡，正是男儿读书时~"
 sidebar-avatar: /img/avatar_binggan.jpg      # use absolute URL, seeing it's used in both `/` and `/about/`
 
 
@@ -22,7 +22,7 @@ RSS: false
 zhihu_username:     暂无
 github_username:    暂无
 facebook_username:  暂无
-jianshu_username:   暂无
+jianshu_username:   zhangzhifei
 #twitter_username:   暂无
 
 
