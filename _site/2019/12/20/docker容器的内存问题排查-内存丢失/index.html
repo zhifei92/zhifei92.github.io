@@ -6,44 +6,47 @@
 <h1 id="排查过程">排查过程</h1>
 <ol>
   <li>进容器看看业务进程消耗资源
-docker exec进到容器top后输入M（大写M），查看消耗内存最多的进程
-```
-top - 15:12:57 up 7 days,  1:00,  1 user,  load average: 0.24, 0.08, 0.02
+docker exec进到容器top后输入M（大写M），查看消耗内存最多的进程</li>
+</ol>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>top - 15:12:57 up 7 days,  1:00,  1 user,  load average: 0.24, 0.08, 0.02
 Tasks: 145 total,   1 running, 144 sleeping,   0 stopped,   0 zombie
 Cpu(s):  1.0%us,  0.0%sy,  0.0%ni, 99.0%id,  0.0%wa,  0.0%hi,  0.0%si,  0.0%st
 Mem:   8192000k total,  7724968k used,   467032k free,        0k buffers
-Swap:        0k total,        0k used,        0k free,  1745040k cached</li>
-</ol>
+Swap:        0k total,        0k used,        0k free,  1745040k cached
 
-<p>PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND                                                   204 root      20   0 2527m  19m 3140 S  0.0  0.2   0:43.40 docker-qalarm                                          <br />
-35382 nobody    20   0  306m  17m 9.8m S  0.0  0.2   0:20.51 php-fpm                                                <br />
-35373 nobody    20   0  306m  17m 9984 S  0.0  0.2   0:20.88 php-fpm                                                <br />
-35444 nobody    20   0  306m  17m 9964 S  0.0  0.2   0:20.55 php-fpm                                                <br />
-35350 nobody    20   0  306m  17m 9936 S  0.0  0.2   0:20.44 php-fpm                                                <br />
-35407 nobody    20   0  306m  17m 9976 S  0.0  0.2   0:20.22 php-fpm                                                <br />
-35392 nobody    20   0  306m  17m 9924 S  0.0  0.2   0:20.33 php-fpm                                                <br />
-35368 nobody    20   0  306m  17m 9916 S  0.0  0.2   0:20.22 php-fpm                                                <br />
-35398 nobody    20   0  306m  17m 9908 S  0.0  0.2   0:20.27 php-fpm                                                <br />
-35357 nobody    20   0  306m  17m 9912 S  0.3  0.2   0:20.94 php-fpm                                                <br />
-35463 nobody    20   0  306m  17m 9912 S  0.0  0.2   0:20.22 php-fpm                                                <br />
-35437 nobody    20   0  306m  17m 9900 S  0.0  0.2   0:21.09 php-fpm                                                <br />
-35464 nobody    20   0  306m  17m 9896 S  0.0  0.2   0:20.46 php-fpm                                                <br />
-35384 nobody    20   0  306m  17m 9888 S  0.3  0.2   0:19.90 php-fpm                                                <br />
-35348 nobody    20   0  306m  17m 9876 S  0.0  0.2   0:20.53 php-fpm                                                <br />
-35365 nobody    20   0  306m  17m 9880 S  0.0  0.2   0:20.71 php-fpm                                                <br />
-35358 nobody    20   0  306m  17m 9868 S  0.0  0.2   0:20.42 php-fpm                                                <br />
-35420 nobody    20   0  306m  17m 9892 S  0.0  0.2   0:19.88 php-fpm                                                <br />
-35424 nobody    20   0  306m  17m 9864 S  0.0  0.2   0:20.52 php-fpm                                                <br />
-35389 nobody    20   0  306m  17m 9872 S  0.0  0.2   0:20.18 php-fpm                                                <br />
-35335 nobody    20   0  306m  17m 9908 S  0.0  0.2   0:20.84 php-fpm                                                <br />
-35468 nobody    20   0  306m  17m 9912 S  0.3  0.2   0:20.58 php-fpm</p>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code></code></pre></div></div>
-<p>[root@robot-speaker-e862e0-7c84fb65cd-whv5d /home/q/system/speaker-robot]# ps -ef | grep php-fpm|grep -v grep|wc -l
-129</p>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>发现使用内存最多的php-fpm 进程用了17M，129个进程，一共使用内存2.1g。内存使用了7.4g、未使用450M、cache1.7g（我们使用了lxcfs做容器视图隔离，所以内存显示的是容器的真实情况），还有5g左右内存去哪了
-2、进到内存容器cgroup
+  PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND                                                   204 root      20   0 2527m  19m 3140 S  0.0  0.2   0:43.40 docker-qalarm                                            
+35382 nobody    20   0  306m  17m 9.8m S  0.0  0.2   0:20.51 php-fpm                                                  
+35373 nobody    20   0  306m  17m 9984 S  0.0  0.2   0:20.88 php-fpm                                                  
+35444 nobody    20   0  306m  17m 9964 S  0.0  0.2   0:20.55 php-fpm                                                  
+35350 nobody    20   0  306m  17m 9936 S  0.0  0.2   0:20.44 php-fpm                                                  
+35407 nobody    20   0  306m  17m 9976 S  0.0  0.2   0:20.22 php-fpm                                                  
+35392 nobody    20   0  306m  17m 9924 S  0.0  0.2   0:20.33 php-fpm                                                  
+35368 nobody    20   0  306m  17m 9916 S  0.0  0.2   0:20.22 php-fpm                                                  
+35398 nobody    20   0  306m  17m 9908 S  0.0  0.2   0:20.27 php-fpm                                                  
+35357 nobody    20   0  306m  17m 9912 S  0.3  0.2   0:20.94 php-fpm                                                  
+35463 nobody    20   0  306m  17m 9912 S  0.0  0.2   0:20.22 php-fpm                                                  
+35437 nobody    20   0  306m  17m 9900 S  0.0  0.2   0:21.09 php-fpm                                                  
+35464 nobody    20   0  306m  17m 9896 S  0.0  0.2   0:20.46 php-fpm                                                  
+35384 nobody    20   0  306m  17m 9888 S  0.3  0.2   0:19.90 php-fpm                                                  
+35348 nobody    20   0  306m  17m 9876 S  0.0  0.2   0:20.53 php-fpm                                                  
+35365 nobody    20   0  306m  17m 9880 S  0.0  0.2   0:20.71 php-fpm                                                  
+35358 nobody    20   0  306m  17m 9868 S  0.0  0.2   0:20.42 php-fpm                                                  
+35420 nobody    20   0  306m  17m 9892 S  0.0  0.2   0:19.88 php-fpm                                                  
+35424 nobody    20   0  306m  17m 9864 S  0.0  0.2   0:20.52 php-fpm                                                  
+35389 nobody    20   0  306m  17m 9872 S  0.0  0.2   0:20.18 php-fpm                                                  
+35335 nobody    20   0  306m  17m 9908 S  0.0  0.2   0:20.84 php-fpm                                                  
+35468 nobody    20   0  306m  17m 9912 S  0.3  0.2   0:20.58 php-fpm
 </code></pre></div></div>
-<p>7af95a9ac99dd32c8bc51aa4531f75a836d1b5e6c29]# ls
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>[root@robot-speaker-e862e0-7c84fb65cd-whv5d /home/q/system/speaker-robot]# ps -ef | grep php-fpm|grep -v grep|wc -l
+129
+</code></pre></div></div>
+
+<p>发现使用内存最多的php-fpm 进程用了17M，129个进程，一共使用内存2.1g。内存使用了7.4g、未使用450M、cache1.7g（我们使用了lxcfs做容器视图隔离，所以内存显示的是容器的真实情况），还有5g左右内存去哪了
+2、进到内存容器cgroup</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>7af95a9ac99dd32c8bc51aa4531f75a836d1b5e6c29]# ls
 cgroup.clone_children           memory.kmem.tcp.max_usage_in_bytes  memory.oom_control
 cgroup.event_control            memory.kmem.tcp.usage_in_bytes      memory.pressure_level
 cgroup.procs                    memory.kmem.usage_in_bytes          memory.soft_limit_in_bytes
@@ -55,15 +58,22 @@ memory.kmem.max_usage_in_bytes  memory.memsw.max_usage_in_bytes     notify_on_re
 memory.kmem.slabinfo            memory.memsw.usage_in_bytes         tasks
 memory.kmem.tcp.failcnt         memory.move_charge_at_immigrate
 memory.kmem.tcp.limit_in_bytes  memory.numa_stat
-[root@docker123 /sys/fs/cgroup/memory/kubepods/burstable/pod6e726ccc-1d6f-11ea-851f-fa163e9a7739/45bb864dfe68379c6d2f07af95a9ac99dd32c8bc51aa4531f75a836d1b5e6c29]#</p>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>- 查看 memory.usage_in_bytes
+[root@docker123 /sys/fs/cgroup/memory/kubepods/burstable/pod6e726ccc-1d6f-11ea-851f-fa163e9a7739/45bb864dfe68379c6d2f07af95a9ac99dd32c8bc51aa4531f75a836d1b5e6c29]#
 </code></pre></div></div>
-<p>7af95a9ac99dd32c8bc51aa4531f75a836d1b5e6c29]# cat  memory.usage_in_bytes
-7934582784</p>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>确实是7g多
-- 查看内存使用情况memory.stat
+<ul>
+  <li>查看 memory.usage_in_bytes</li>
+</ul>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>7af95a9ac99dd32c8bc51aa4531f75a836d1b5e6c29]# cat  memory.usage_in_bytes
+7934582784
 </code></pre></div></div>
-<p>7af95a9ac99dd32c8bc51aa4531f75a836d1b5e6c29]# cat memory.stat
+
+<p>确实是7g多</p>
+<ul>
+  <li>查看内存使用情况memory.stat</li>
+</ul>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>7af95a9ac99dd32c8bc51aa4531f75a836d1b5e6c29]# cat memory.stat
 cache 1806925824
 rss 622092288
 rss_huge 287309824
@@ -93,19 +103,27 @@ total_inactive_anon 17465344
 total_active_anon 628965376
 total_inactive_file 1058193408
 total_active_file 724385792
-total_unevictable 0</p>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>没有占用内存特别大的项，也就是远没达到top所见。另外忘记说，上边单位都是字节
+total_unevictable 0
+</code></pre></div></div>
 
-- 查看容器的内核内存使用量memory.kmem.usage_in_bytes
+<p>没有占用内存特别大的项，也就是远没达到top所见。另外忘记说，上边单位都是字节</p>
+
+<ul>
+  <li>查看容器的内核内存使用量memory.kmem.usage_in_bytes</li>
+</ul>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>7af95a9ac99dd32c8bc51aa4531f75a836d1b5e6c29]# cat memory.kmem.usage_in_bytes
+5513891840
 </code></pre></div></div>
-<p>7af95a9ac99dd32c8bc51aa4531f75a836d1b5e6c29]# cat memory.kmem.usage_in_bytes
-5513891840</p>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>果然是5g
-- 现在看下容器使用内核slab情况memory.kmem.slabinfo
-</code></pre></div></div>
-<p>7af95a9ac99dd32c8bc51aa4531f75a836d1b5e6c29]# cat memory.kmem.slabinfo
+
+<p>果然是5g</p>
+<ul>
+  <li>现在看下容器使用内核slab情况memory.kmem.slabinfo</li>
+</ul>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>7af95a9ac99dd32c8bc51aa4531f75a836d1b5e6c29]# cat memory.kmem.slabinfo
 slabinfo - version: 2.1
-…
+...
 taskstats           1960   1960    328   49    4 : tunables    0    0    0 : slabdata     40     40      0
 xfs_ili           3945336 3945336    168   48    2 : tunables    0    0    0 : slabdata  82195  82195      0
 xfs_btree_cur       1560   1560    208   39    2 : tunables    0    0    0 : slabdata     40     40      0
@@ -120,14 +138,19 @@ fanotify_event_info   2920   2920     56   73    1 : tunables    0    0    0 : s
 blkdev_ioc          1560   1560    104   39    1 : tunables    0    0    0 : slabdata     40     40      0
 xfs_inode         3959772 3959772    960   34    8 : tunables    0    0    0 : slabdata 116478 116478      0
 Acpi-ParseExt       2240   2240     72   56    1 : tunables    0    0    0 : slabdata     40     40      0
-…</p>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>可以看出关于文件元数据缓存就占了4g多，上图第三列是对象数量，第四列是对象大小，所以xfs_inode占用内存=3959772 * 960 /1024/1024/1024,约等于3.5g，xfs_ili 0.7g，这已经4g多了。所以基本可以断定是业务进程操作文件多过导致
-- 查看容器内是否有大量小文件
+...
 </code></pre></div></div>
-<p>[root@robot-speaker-e862e0-7c84fb65cd-whv5d /data/php/session]# ls -lR | grep “^-“| wc -l
+
+<p>可以看出关于文件元数据缓存就占了4g多，上图第三列是对象数量，第四列是对象大小，所以xfs_inode占用内存=3959772 * 960 /1024/1024/1024,约等于3.5g，xfs_ili 0.7g，这已经4g多了。所以基本可以断定是业务进程操作文件多过导致</p>
+<ul>
+  <li>查看容器内是否有大量小文件</li>
+</ul>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>[root@robot-speaker-e862e0-7c84fb65cd-whv5d /data/php/session]# ls -lR | grep "^-"| wc -l
 3941117
-```
-可见session文件数与slab中的xfs_inode基本相当，所以可以断定罪魁祸首在此</p>
+</code></pre></div></div>
+
+<p>可见session文件数与slab中的xfs_inode基本相当，所以可以断定罪魁祸首在此</p>
 <ul>
   <li>随着session文件越来越多，xfs_inode占用slab内存越来越多，不可回收SUnreclaim也会越来越大，所以最终会导致可用内存越来越少
     <h1 id="验证结果">验证结果</h1>
