@@ -1,122 +1,1323 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>My Blog</title>
-    <description>写一句你想写的话</description>
-    <link>http://localhost:4000/</link>
-    <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Sun, 21 Apr 2019 17:10:45 +0800</pubDate>
-    <lastBuildDate>Sun, 21 Apr 2019 17:10:45 +0800</lastBuildDate>
-    <generator>Jekyll v3.8.5</generator>
+    <title>zhangzhifei's Blog</title>
+    <description>这是张志飞的个人博客，目前刚开始使用，希望和大家分享一些有价值的文章，一起交流学习</description>
+    <link>http://localhost:5555/</link>
+    <atom:link href="http://localhost:5555/feed.xml" rel="self" type="application/rss+xml" />
+    <pubDate>Sat, 23 May 2020 03:08:15 +0800</pubDate>
+    <lastBuildDate>Sat, 23 May 2020 03:08:15 +0800</lastBuildDate>
+    <generator>Jekyll v4.0.1</generator>
     
       <item>
-        <title>This is title</title>
-        <description>&lt;h1 id=&quot;title&quot;&gt;Title&lt;/h1&gt;
+        <title>Go语言版本的gossip协议包（memberlist）的使用</title>
+        <description>&lt;h1 id=&quot;说明&quot;&gt;说明&lt;/h1&gt;
+&lt;p&gt;由于工作的契机，最近学习了下Gossip，以及go语言的实现版本HashiCorp/memberlist。网上有个最基本的memberlist使用的example，在下边的链接中，感兴趣可以按照文档运行下感受感受。本文主要讲解memberlist &lt;a href=&quot;https://github.com/hashicorp/memberlist/releases/tag/v0.1.5&quot;&gt;v0.1.5&lt;/a&gt; 的使用细节。&lt;/p&gt;
+&lt;h1 id=&quot;gossip&quot;&gt;Gossip&lt;/h1&gt;
+&lt;p&gt;Gossip是最终一致性协议，有很好的容错性、健壮性。目前Prometheus的告警组件alertmanager、redis、s3、区块链等项目都有使用Gossip。本文不介绍Gossip原理，大家自行谷歌。&lt;/p&gt;
+&lt;h1 id=&quot;example&quot;&gt;example&lt;/h1&gt;
+&lt;p&gt;简单的几步即可搭建gossip集群&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;1、new个配置文件
+c := memberlist.DefaultLocalConfig()
+2、创建gossip网络
+m, err := memberlist.Create(c)
+3、将节点加入到集群
+m.Join(parts)
+4、实现delegate接口
+5、将我们需要同步的数据加到广播队列
+broadcasts.QueueBroadcast(userdate)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;感谢已经有网友为我们实现了一个example（&lt;a href=&quot;https://github.com/asim/memberlist&quot;&gt;https://github.com/asim/memberlist&lt;/a&gt;
+）。&lt;/p&gt;
+&lt;h1 id=&quot;配置文件&quot;&gt;配置文件&lt;/h1&gt;
+&lt;ol&gt;
+  &lt;li&gt;我们与memberlist交互就是这个Config 配置文件，里面包括基本配置BindAddr 、BindPort ，优化配置GossipInterval、 GossipNodes，代理接口Delegate、EventDelegate。memberlist给了我们三个默认配置，我们不做任何修改，直接创建默认配置即可以简单的跑启一个gossip集群。局域网络的配置DefaultLANConfig，外网DefaultWANConfig，本地DefaultLocalConfig，后两者都是在DefaultLANConfig
+基础上修改，区别是根据网速，调整了gossip interval、tcptimeout超时时间等。&lt;/li&gt;
+  &lt;li&gt;接下来主要介绍下Config的各个配置项，以便大家在使用memberlist时，能够知道哪个参数应该修改，哪个代理需要实现。
+    &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;type Config struct {
+ // The name of this node. This must be unique in the cluster.
+ Name string
 
-&lt;p&gt;content&lt;/p&gt;
+ // Transport is a hook for providing custom code to communicate with
+ // other nodes. If this is left nil, then memberlist will by default
+ // make a NetTransport using BindAddr and BindPort from this structure.
+ Transport Transport
+
+ // Configuration related to what address to bind to and ports to
+ // listen on. The port is used for both UDP and TCP gossip. It is
+ // assumed other nodes are running on this port, but they do not need
+ // to.
+ BindAddr string
+ BindPort int
+
+ // Configuration related to what address to advertise to other
+ // cluster members. Used for nat traversal.
+ AdvertiseAddr string
+ AdvertisePort int
+
+ // ProtocolVersion is the configured protocol version that we
+ // will _speak_. This must be between ProtocolVersionMin and
+ // ProtocolVersionMax.
+ ProtocolVersion uint8
+
+ // TCPTimeout is the timeout for establishing a stream connection with
+ // a remote node for a full state sync, and for stream read and write
+ // operations. This is a legacy name for backwards compatibility, but
+ // should really be called StreamTimeout now that we have generalized
+ // the transport.
+ TCPTimeout time.Duration
+
+ /* IndirectChecks is the number of nodes that will be asked to perform
+  an indirect probe of a node in the case a direct probe fails. Memberlist
+  waits for an ack from any single indirect node, so increasing this
+  number will increase the likelihood that an indirect probe will succeed
+  at the expense of bandwidth. */
+ IndirectChecks int
+
+ // RetransmitMult is the multiplier for the number of retransmissions
+ // that are attempted for messages broadcasted over gossip. The actual
+ // count of retransmissions is calculated using the formula:
+ //
+ //   Retransmits = RetransmitMult * log(N+1)
+ //
+ // This allows the retransmits to scale properly with cluster size. The
+ // higher the multiplier, the more likely a failed broadcast is to converge
+ // at the expense of increased bandwidth.
+ RetransmitMult int
+
+ // SuspicionMult is the multiplier for determining the time an
+ // inaccessible node is considered suspect before declaring it dead.
+ // The actual timeout is calculated using the formula:
+ //
+ //   SuspicionTimeout = SuspicionMult * log(N+1) * ProbeInterval
+ //
+ // This allows the timeout to scale properly with expected propagation
+ // delay with a larger cluster size. The higher the multiplier, the longer
+ // an inaccessible node is considered part of the cluster before declaring
+ // it dead, giving that suspect node more time to refute if it is indeed
+ // still alive.
+ SuspicionMult int
+
+ // SuspicionMaxTimeoutMult is the multiplier applied to the
+ // SuspicionTimeout used as an upper bound on detection time. This max
+ // timeout is calculated using the formula:
+ //
+ // SuspicionMaxTimeout = SuspicionMaxTimeoutMult * SuspicionTimeout
+ //
+ // If everything is working properly, confirmations from other nodes will
+ // accelerate suspicion timers in a manner which will cause the timeout
+ // to reach the base SuspicionTimeout before that elapses, so this value
+ // will typically only come into play if a node is experiencing issues
+ // communicating with other nodes. It should be set to a something fairly
+ // large so that a node having problems will have a lot of chances to
+ // recover before falsely declaring other nodes as failed, but short
+ // enough for a legitimately isolated node to still make progress marking
+ // nodes failed in a reasonable amount of time.
+ SuspicionMaxTimeoutMult int
+
+ // PushPullInterval is the interval between complete state syncs.
+ // Complete state syncs are done with a single node over TCP and are
+ // quite expensive relative to standard gossiped messages. Setting this
+ // to zero will disable state push/pull syncs completely.
+ //
+ // Setting this interval lower (more frequent) will increase convergence
+ // speeds across larger clusters at the expense of increased bandwidth
+ // usage.
+ PushPullInterval time.Duration
+
+ // ProbeInterval and ProbeTimeout are used to configure probing
+ // behavior for memberlist.
+ //
+ // ProbeInterval is the interval between random node probes. Setting
+ // this lower (more frequent) will cause the memberlist cluster to detect
+ // failed nodes more quickly at the expense of increased bandwidth usage.
+ //
+ // ProbeTimeout is the timeout to wait for an ack from a probed node
+ // before assuming it is unhealthy. This should be set to 99-percentile
+ // of RTT (round-trip time) on your network.
+ ProbeInterval time.Duration
+ ProbeTimeout  time.Duration
+
+ // DisableTcpPings will turn off the fallback TCP pings that are attempted
+ // if the direct UDP ping fails. These get pipelined along with the
+ // indirect UDP pings.
+ DisableTcpPings bool
+
+ // AwarenessMaxMultiplier will increase the probe interval if the node
+ // becomes aware that it might be degraded and not meeting the soft real
+ // time requirements to reliably probe other nodes.
+ AwarenessMaxMultiplier int
+
+ // GossipInterval and GossipNodes are used to configure the gossip
+ // behavior of memberlist.
+ //
+ // GossipInterval is the interval between sending messages that need
+ // to be gossiped that haven't been able to piggyback on probing messages.
+ // If this is set to zero, non-piggyback gossip is disabled. By lowering
+ // this value (more frequent) gossip messages are propagated across
+ // the cluster more quickly at the expense of increased bandwidth.
+ //
+ // GossipNodes is the number of random nodes to send gossip messages to
+ // per GossipInterval. Increasing this number causes the gossip messages
+ // to propagate across the cluster more quickly at the expense of
+ // increased bandwidth.
+ //
+ // GossipToTheDeadTime is the interval after which a node has died that
+ // we will still try to gossip to it. This gives it a chance to refute.
+ GossipInterval      time.Duration
+ GossipNodes         int
+ GossipToTheDeadTime time.Duration
+
+ // GossipVerifyIncoming controls whether to enforce encryption for incoming
+ // gossip. It is used for upshifting from unencrypted to encrypted gossip on
+ // a running cluster.
+ GossipVerifyIncoming bool
+
+ // GossipVerifyOutgoing controls whether to enforce encryption for outgoing
+ // gossip. It is used for upshifting from unencrypted to encrypted gossip on
+ // a running cluster.
+ GossipVerifyOutgoing bool
+
+ // EnableCompression is used to control message compression. This can
+ // be used to reduce bandwidth usage at the cost of slightly more CPU
+ // utilization. This is only available starting at protocol version 1.
+ EnableCompression bool
+
+ // SecretKey is used to initialize the primary encryption key in a keyring.
+ // The primary encryption key is the only key used to encrypt messages and
+ // the first key used while attempting to decrypt messages. Providing a
+ // value for this primary key will enable message-level encryption and
+ // verification, and automatically install the key onto the keyring.
+ // The value should be either 16, 24, or 32 bytes to select AES-128,
+ // AES-192, or AES-256.
+ SecretKey []byte
+
+ // The keyring holds all of the encryption keys used internally. It is
+ // automatically initialized using the SecretKey and SecretKeys values.
+ Keyring *Keyring
+
+ // Delegate and Events are delegates for receiving and providing
+ // data to memberlist via callback mechanisms. For Delegate, see
+ // the Delegate interface. For Events, see the EventDelegate interface.
+ //
+ // The DelegateProtocolMin/Max are used to guarantee protocol-compatibility
+ // for any custom messages that the delegate might do (broadcasts,
+ // local/remote state, etc.). If you don't set these, then the protocol
+ // versions will just be zero, and version compliance won't be done.
+ Delegate                Delegate
+ DelegateProtocolVersion uint8
+ DelegateProtocolMin     uint8
+ DelegateProtocolMax     uint8
+ Events                  EventDelegate
+ Conflict                ConflictDelegate
+ Merge                   MergeDelegate
+ Ping                    PingDelegate
+ Alive                   AliveDelegate
+
+ // DNSConfigPath points to the system's DNS config file, usually located
+ // at /etc/resolv.conf. It can be overridden via config for easier testing.
+ DNSConfigPath string
+
+ // LogOutput is the writer where logs should be sent. If this is not
+ // set, logging will go to stderr by default. You cannot specify both LogOutput
+ // and Logger at the same time.
+ LogOutput io.Writer
+
+ // Logger is a custom logger which you provide. If Logger is set, it will use
+ // this for the internal logger. If Logger is not set, it will fall back to the
+ // behavior for using LogOutput. You cannot specify both LogOutput and Logger
+ // at the same time.
+ Logger *log.Logger
+
+ // Size of Memberlist's internal channel which handles UDP messages. The
+ // size of this determines the size of the queue which Memberlist will keep
+ // while UDP messages are handled.
+ HandoffQueueDepth int
+
+ // Maximum number of bytes that memberlist will put in a packet (this
+ // will be for UDP packets by default with a NetTransport). A safe value
+ // for this is typically 1400 bytes (which is the default). However,
+ // depending on your network's MTU (Maximum Transmission Unit) you may
+ // be able to increase this to get more content into each gossip packet.
+ // This is a legacy name for backward compatibility but should really be
+ // called PacketBufferSize now that we have generalized the transport.
+ UDPBufferSize int
+
+ // DeadNodeReclaimTime controls the time before a dead node's name can be
+ // reclaimed by one with a different address or port. By default, this is 0,
+ // meaning nodes cannot be reclaimed this way.
+ DeadNodeReclaimTime time.Duration
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;    &lt;/div&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h5 id=&quot;配置项解释&quot;&gt;配置项解释&lt;/h5&gt;
+&lt;ul&gt;
+  &lt;li&gt;Name：节点名字，在集群中必须唯一（查询节点的唯一标识），可以在hostname后加个uuid等。&lt;/li&gt;
+  &lt;li&gt;Transport：节点间通信的基础服务，包括tcp、udp。不实现这个接口，默认使用memberlist提供的NetTransport。这个基本不用配置，&lt;strong&gt;只有官方提供的功能满足不了你的时候，把源码理解透了，在考虑自定义这个接口&lt;/strong&gt;。&lt;/li&gt;
+  &lt;li&gt;BindAddr、BindPort：这两个很简单，就是gossip peer绑定的地址，新节点可以通过集群中任意一个节点的
+BindAddr、BindPort加入到集群中。默认”0.0.0.0”、‘7946’, BindPort如果配置成‘0’，memberlist会动态绑定一个端口。&lt;/li&gt;
+  &lt;li&gt;AdvertiseAddr、AdvertisePort：这对ip、port是集群其他节点与自己通讯用的，也就是外部可以访问到的ip和端口。上边的BindAddr、BindPort（eg，”0.0.0.0”、‘7946’）是本地监听的ip和端口，但实际本机的出口地址是192.168.1.100:7946，那么AdvertiseAddr应该是192.168.1.100，AdvertisePort是7946，否则其他节点不知道你的真实ip。可能带来误解这个又要根据AdvertiseAddr、AdvertisePort在本地启一个什么服务，其实不是。默认是空，memberlist会解析到节点绑定的ip和port，nat转换后的ip和port。&lt;/li&gt;
+  &lt;li&gt;ProtocolVersion：协议版本，现在有五个版本，差别不大，例如v3加了tcp  ping ，v4支持间接ping。默认使用v2版本。&lt;/li&gt;
+  &lt;li&gt;TCPTimeout：建立tcp链接的超时时间，根据网络情况配置即可。&lt;/li&gt;
+  &lt;li&gt;IndirectChecks：v4协议支持间接探测。当节点启动之后，每个一定的时间间隔，会选取一个节点对其发送一个PING（UDP）消息，当PING消息失败后，会随机选取IndirectChecks个节点发起间接的PING。&lt;/li&gt;
+  &lt;li&gt;RetransmitMult：广播队列里的消息发送失败超过一定次数后，消息就会被丢弃。RetransmitMult就是用算重传次数的，Retransmits = RetransmitMult * log(N+1)。&lt;/li&gt;
+  &lt;li&gt;SuspicionMaxTimeoutMult、SuspicionMult：探测某个节点超时后，会将改节点标记为“suspect”节点。节点被标记为“suspect”后，本地启动一个定时器，发出一个“suspect”广播，在一段时间被如果收到其他节点发送过来的“suspect”消息，就将本地的“suspect”确认数加1，当确认数达到要求之后并且该节依旧不是alive状态，会将该节点标记dead。这个时间计算方式如下：
+1.SuspicionTimeout = SuspicionMult * log(N+1) * ProbeInterval
+2.SuspicionMaxTimeout = SuspicionMaxTimeoutMult * SuspicionTimeout
+这两个值一般也不要我们配置，使用默认即可。&lt;/li&gt;
+  &lt;li&gt;PushPullInterval：每隔PushPullInterval时间间隔，随机选取一个节点，跟它建立tcp连接，然后将本节点的全部状态通过tcp传到对方，对方也把他的状态响应回来，进行状态同步。根据网络情况进行调整即可。&lt;/li&gt;
+  &lt;li&gt;ProbeInterval、ProbeTimeout：探针间隔和，探测超时时间。根据网络情况进行调整即可。&lt;/li&gt;
+  &lt;li&gt;DisableTcpPings：关闭tcp ping。这个参数一般也不用管它。&lt;/li&gt;
+  &lt;li&gt;AwarenessMaxMultiplier：在节点认为自己不能可靠的探测其他节点时，会根据这个参数增加探测间隔。一般使用默认配置即可。&lt;/li&gt;
+  &lt;li&gt;GossipInterval：检查广播队列是否有数据需要发送给其他节点的时间&lt;/li&gt;
+  &lt;li&gt;GossipNodes：每次给几个节点扩散数据&lt;/li&gt;
+  &lt;li&gt;GossipToTheDeadTime：在这个时间内仍然会尝试给Dead状态的节点发送数据。使用默认配置即可&lt;/li&gt;
+  &lt;li&gt;GossipVerifyIncoming、GossipVerifyOutgoing，SecretKey、Keyring：加密算法和秘钥（SecretKey、Keyring）确定是否对网络上的数据进行加密。GossipVerifyIncoming、GossipVerifyOutgoing为true的作用是如果加密失败则报错，为false表示加密失败则明文传输。&lt;/li&gt;
+  &lt;li&gt;EnableCompression ：是否数据压缩，默认是true，可以减少贷款。根据需要配置&lt;/li&gt;
+  &lt;li&gt;DNSConfigPath：指向系统的DNS配置文件，linux就是“/etc/resolv.conf”&lt;/li&gt;
+  &lt;li&gt;LogOutput、Logger：可以定义memerlist的日志输出方式&lt;/li&gt;
+  &lt;li&gt;HandoffQueueDepth：广播队列的大小，默认1024，基本足够，不需要改动。&lt;/li&gt;
+  &lt;li&gt;DeadNodeReclaimTime：如果配置了，加入节点处于dead状态，DeadNodeReclaimTime时间范围内允许相同节点name相同，但ip、port不同的状态对其更新。默认是0，如果发生上述现象则发生冲突。不理解没关系，不配置就可以了。
+    &lt;h5 id=&quot;代理&quot;&gt;代理&lt;/h5&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Delegate：这个接口一定要实现的，同步业务数据靠的就是这个接口。
+1、NotifyMsg([]byte)：每当用户有新数据加到广播队列时，回调此方法通知其他节点同步状态
+2、LocalState(join bool) []byte、MergeRemoteState(buf []byte, join bool)：每隔PushPullInterval 周期，本地memberlist回调LocalState方法，把本地全部数据发送到其他节点；其他节点memberlist回调MergeRemoteState，接受数据进行同步。
+大家注意下上面两者的区别，一个数新增数据的广播，另一个是通过tcp全量数据同步（加快节点同步状态；加强一致性保障）。&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;DelegateProtocolVersion、DelegateProtocolMin、DelegateProtocolMax：业务级别的Delegate版本控制，基本也用不到。什么时候感觉自己需要个这东西，回头在看见就行。&lt;/li&gt;
+  &lt;li&gt;Events：Events代理，节点加入集群、离开、更新时通知业务层，保存节点状态可以用来链接重连之类的工作。&lt;/li&gt;
+  &lt;li&gt;Ping：ping代理用来通知业务层，一次ping的ttl，如果需要打点监控的话，可以实现下，否则不需要实现。&lt;/li&gt;
+  &lt;li&gt;Alive：收到Alive通知后通知业务层，如果需要打点监控的话，可以实现下，否则不需要实现。&lt;/li&gt;
+  &lt;li&gt;Merge：这个代理感觉没什么用，慢慢发现吧。
+    &lt;h1 id=&quot;最后&quot;&gt;最后&lt;/h1&gt;
+    &lt;p&gt;哪里有问题，还请大家多多指正&lt;/p&gt;
+    &lt;h1 id=&quot;参考&quot;&gt;参考&lt;/h1&gt;
+    &lt;p&gt;&lt;a href=&quot;https://www.consul.io/docs/internals/gossip.html&quot;&gt;https://www.consul.io/docs/internals/gossip.html&lt;/a&gt;
+&lt;a href=&quot;https://en.wikipedia.org/wiki/Gossip_protocol&quot;&gt;https://en.wikipedia.org/wiki/Gossip_protocol&lt;/a&gt;
+&lt;a href=&quot;https://github.com/asim/memberlist&quot;&gt;https://github.com/asim/memberlist&lt;/a&gt;
+&lt;a href=&quot;https://github.com/hashicorp/memberlist&quot;&gt;https://github.com/hashicorp/memberlist&lt;/a&gt;
+&lt;a href=&quot;https://zhuanlan.zhihu.com/p/41228196&quot;&gt;https://zhuanlan.zhihu.com/p/41228196&lt;/a&gt;&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
 </description>
-        <pubDate>Sun, 21 Apr 2019 00:00:00 +0800</pubDate>
-        <link>http://localhost:4000/2019/04/21/This-is-Title/</link>
-        <guid isPermaLink="true">http://localhost:4000/2019/04/21/This-is-Title/</guid>
-        
-        <category>Tylor</category>
+        <pubDate>Wed, 01 Jan 2020 00:00:00 +0800</pubDate>
+        <link>http://localhost:5555/2020/01/01/go%E8%AF%AD%E8%A8%80%E7%89%88%E6%9C%AC%E7%9A%84Gossip%E5%8D%8F%E8%AE%AE%E5%8C%85-memberlist-%E7%9A%84%E4%BD%BF%E7%94%A8/</link>
+        <guid isPermaLink="true">http://localhost:5555/2020/01/01/go%E8%AF%AD%E8%A8%80%E7%89%88%E6%9C%AC%E7%9A%84Gossip%E5%8D%8F%E8%AE%AE%E5%8C%85-memberlist-%E7%9A%84%E4%BD%BF%E7%94%A8/</guid>
         
         
       </item>
     
       <item>
-        <title>Install TensorFlow-GPU by Anaconda (conda install tensorflow-gpu)</title>
-        <description>&lt;h1 id=&quot;install-tensorflow-gpu-by-anaconda-conda-install-tensorflow-gpu&quot;&gt;Install TensorFlow-GPU by Anaconda (conda install tensorflow-gpu)&lt;/h1&gt;
+        <title>Docker容器的内存问题排查（“内存丢失”）</title>
+        <description>&lt;h1 id=&quot;场景描述&quot;&gt;场景描述&lt;/h1&gt;
+&lt;p&gt;容器内可用内存远没有达到cgroup限制，就已经OOM(Out Of Memory Killer)。容器套餐4c8g，top看占内存最多的进程大约17m左右，总共100个，总内存也不到2g，但是memory.usage_in_bytes已经达到8g（free看也是一样），cache也只有几百兆，久而久之，cache所占内存也被耗尽，容器内进程oom，实际可用内存不到1g。在这记录下问题排查过程。&lt;/p&gt;
+&lt;h1 id=&quot;排查问题容器环境&quot;&gt;排查问题容器环境&lt;/h1&gt;
+&lt;p&gt;由于达到oom的现场已经不在，现在使用下面的场景进行演示：
+容器套餐4c8g，working_set内存6.8g（容器内一般用working_set来评内存使用情况，working_set=rss+活跃的cache），rss600m，cache1.7g，业务进程使用2g。目前working_set远小于rss+cache。&lt;/p&gt;
+&lt;h1 id=&quot;排查过程&quot;&gt;排查过程&lt;/h1&gt;
+&lt;ol&gt;
+  &lt;li&gt;进容器看看业务进程消耗资源
+docker exec进到容器top后输入M（大写M），查看消耗内存最多的进程
+```
+top - 15:12:57 up 7 days,  1:00,  1 user,  load average: 0.24, 0.08, 0.02
+Tasks: 145 total,   1 running, 144 sleeping,   0 stopped,   0 zombie
+Cpu(s):  1.0%us,  0.0%sy,  0.0%ni, 99.0%id,  0.0%wa,  0.0%hi,  0.0%si,  0.0%st
+Mem:   8192000k total,  7724968k used,   467032k free,        0k buffers
+Swap:        0k total,        0k used,        0k free,  1745040k cached&lt;/li&gt;
+&lt;/ol&gt;
 
-&lt;h2 id=&quot;it-might-be-the-simplest-way-to-install-tensorflow-or-tensorflow-gpu-by-conda-install-in-the-conda-environment&quot;&gt;It might be the simplest way to install Tensorflow or Tensorflow-GPU by conda install in the conda environment&lt;/h2&gt;
-
-&lt;p&gt;Nowadays, there are many tutorials that instruct how to install tensorflow or tensorflow-gpu. However, some people may feel it too complex just like me, because in those ways, you should download and install &lt;a href=&quot;https://www.nvidia.com/Download/index.aspx?lang=en-us&quot;&gt;NVIDIA drivers&lt;/a&gt;, and then download and install &lt;a href=&quot;https://developer.nvidia.com/cuda-downloads&quot;&gt;CUDA&lt;/a&gt; (users need to pay attention to the version), afterwards you may sign an agreement and download cuDNN in &lt;a href=&quot;https://developer.nvidia.com/cudnn&quot;&gt;NVIDIA Developer&lt;/a&gt;. Next, install python, and pip install tensorflow-gpu and so on. It’s not esay for developer to do these, let alone it might causes some other error such as &lt;strong&gt;version not match&lt;/strong&gt;, or &lt;strong&gt;conflict between other python libraries&lt;/strong&gt; and so on. Moreover, if you want to &lt;a href=&quot;https://www.tensorflow.org/install/gpu&quot;&gt;install tensorflow by compilation&lt;/a&gt;, it may take much more time.&lt;/p&gt;
-
-&lt;p&gt;Thus I strongly reconmend you not to do this, there’s a much easier way to install this. Please read the following article.&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;h2 id=&quot;install-anaconda&quot;&gt;Install Anaconda&lt;/h2&gt;
-&lt;blockquote&gt;
-  &lt;p&gt;&lt;a href=&quot;https://www.anaconda.com/&quot;&gt;Anaconda&lt;/a&gt; is a free and open-source distribution of the Python and R programming languages for scientific computing, that aims to simplify package management and deployment.&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;&lt;strong&gt;You can download anaconda &lt;a href=&quot;https://www.anaconda.com/distribution/#download-section&quot;&gt;here&lt;/a&gt;.&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;One of the advantage of anaconda is that it can create &lt;strong&gt;isolated environment&lt;/strong&gt; in your device, and you can configure any libraries and toolkits in the ‘env’ without affect other environment. Once you are nor satisfied of your configuration, you can simplily delete the environment.&lt;/p&gt;
-
-&lt;p&gt;Note that in you are in &lt;strong&gt;China&lt;/strong&gt;, download anaconda might take a long time due to some resons that cannot say. Instead, you can download it from &lt;a href=&quot;https://mirror.tuna.tsinghua.edu.cn/help/anaconda/&quot;&gt;&lt;strong&gt;Tsinghua mirror&lt;/strong&gt;&lt;/a&gt;, and install it &lt;strong&gt;manually&lt;/strong&gt;.&lt;/p&gt;
-
-&lt;p&gt;After downloading this successfully, try to run the installation file.
-For example, if you use ubuntu, you can cd to the path of the sh file and run the following command:&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;./Anaconda3-5.3.1-Linux-x86_64.sh
+&lt;p&gt;PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND                                                   204 root      20   0 2527m  19m 3140 S  0.0  0.2   0:43.40 docker-qalarm                                          &lt;br /&gt;
+35382 nobody    20   0  306m  17m 9.8m S  0.0  0.2   0:20.51 php-fpm                                                &lt;br /&gt;
+35373 nobody    20   0  306m  17m 9984 S  0.0  0.2   0:20.88 php-fpm                                                &lt;br /&gt;
+35444 nobody    20   0  306m  17m 9964 S  0.0  0.2   0:20.55 php-fpm                                                &lt;br /&gt;
+35350 nobody    20   0  306m  17m 9936 S  0.0  0.2   0:20.44 php-fpm                                                &lt;br /&gt;
+35407 nobody    20   0  306m  17m 9976 S  0.0  0.2   0:20.22 php-fpm                                                &lt;br /&gt;
+35392 nobody    20   0  306m  17m 9924 S  0.0  0.2   0:20.33 php-fpm                                                &lt;br /&gt;
+35368 nobody    20   0  306m  17m 9916 S  0.0  0.2   0:20.22 php-fpm                                                &lt;br /&gt;
+35398 nobody    20   0  306m  17m 9908 S  0.0  0.2   0:20.27 php-fpm                                                &lt;br /&gt;
+35357 nobody    20   0  306m  17m 9912 S  0.3  0.2   0:20.94 php-fpm                                                &lt;br /&gt;
+35463 nobody    20   0  306m  17m 9912 S  0.0  0.2   0:20.22 php-fpm                                                &lt;br /&gt;
+35437 nobody    20   0  306m  17m 9900 S  0.0  0.2   0:21.09 php-fpm                                                &lt;br /&gt;
+35464 nobody    20   0  306m  17m 9896 S  0.0  0.2   0:20.46 php-fpm                                                &lt;br /&gt;
+35384 nobody    20   0  306m  17m 9888 S  0.3  0.2   0:19.90 php-fpm                                                &lt;br /&gt;
+35348 nobody    20   0  306m  17m 9876 S  0.0  0.2   0:20.53 php-fpm                                                &lt;br /&gt;
+35365 nobody    20   0  306m  17m 9880 S  0.0  0.2   0:20.71 php-fpm                                                &lt;br /&gt;
+35358 nobody    20   0  306m  17m 9868 S  0.0  0.2   0:20.42 php-fpm                                                &lt;br /&gt;
+35420 nobody    20   0  306m  17m 9892 S  0.0  0.2   0:19.88 php-fpm                                                &lt;br /&gt;
+35424 nobody    20   0  306m  17m 9864 S  0.0  0.2   0:20.52 php-fpm                                                &lt;br /&gt;
+35389 nobody    20   0  306m  17m 9872 S  0.0  0.2   0:20.18 php-fpm                                                &lt;br /&gt;
+35335 nobody    20   0  306m  17m 9908 S  0.0  0.2   0:20.84 php-fpm                                                &lt;br /&gt;
+35468 nobody    20   0  306m  17m 9912 S  0.3  0.2   0:20.58 php-fpm&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;[root@robot-speaker-e862e0-7c84fb65cd-whv5d /home/q/system/speaker-robot]# ps -ef | grep php-fpm|grep -v grep|wc -l
+129&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;发现使用内存最多的php-fpm 进程用了17M，129个进程，一共使用内存2.1g。内存使用了7.4g、未使用450M、cache1.7g（我们使用了lxcfs做容器视图隔离，所以内存显示的是容器的真实情况），还有5g左右内存去哪了
+2、进到内存容器cgroup
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;&lt;strong&gt;&lt;em&gt;Attention that you should change the command above to your own installation file name.&lt;/em&gt;&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;Then you will successfully install Anaconda!&lt;/p&gt;
-
-&lt;h2 id=&quot;create-new-environment-by-conda&quot;&gt;Create new environment by conda&lt;/h2&gt;
-
-&lt;p&gt;If you are unwilling to create conda environment (maybe because of lazy), you can skip this section. However, I strongly reconmend you to create this &lt;strong&gt;for the convience in the future&lt;/strong&gt;.&lt;/p&gt;
-
-&lt;p&gt;Run the command below:&lt;/p&gt;
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;conda create &lt;span class=&quot;nt&quot;&gt;-n&lt;/span&gt; tf
+&lt;p&gt;7af95a9ac99dd32c8bc51aa4531f75a836d1b5e6c29]# ls
+cgroup.clone_children           memory.kmem.tcp.max_usage_in_bytes  memory.oom_control
+cgroup.event_control            memory.kmem.tcp.usage_in_bytes      memory.pressure_level
+cgroup.procs                    memory.kmem.usage_in_bytes          memory.soft_limit_in_bytes
+memory.failcnt                  memory.limit_in_bytes               memory.stat
+memory.force_empty              memory.max_usage_in_bytes           memory.swappiness
+memory.kmem.failcnt             memory.memsw.failcnt                memory.usage_in_bytes
+memory.kmem.limit_in_bytes      memory.memsw.limit_in_bytes         memory.use_hierarchy
+memory.kmem.max_usage_in_bytes  memory.memsw.max_usage_in_bytes     notify_on_release
+memory.kmem.slabinfo            memory.memsw.usage_in_bytes         tasks
+memory.kmem.tcp.failcnt         memory.move_charge_at_immigrate
+memory.kmem.tcp.limit_in_bytes  memory.numa_stat
+[root@docker123 /sys/fs/cgroup/memory/kubepods/burstable/pod6e726ccc-1d6f-11ea-851f-fa163e9a7739/45bb864dfe68379c6d2f07af95a9ac99dd32c8bc51aa4531f75a836d1b5e6c29]#&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;- 查看 memory.usage_in_bytes
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;&lt;img src=&quot;/img/20190328post.jpg&quot; alt=&quot;picture1&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;‘tf’ is the name of your new conda environment, you can try other names as your own interest.&lt;/p&gt;
-
-&lt;p&gt;For other management you conda env, you can read &lt;a href=&quot;https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html?highlight=environment&quot;&gt;this&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h2 id=&quot;install-tensorflow&quot;&gt;Install Tensorflow&lt;/h2&gt;
-
-&lt;p&gt;First, you need to change to the env you have just built by conda:&lt;/p&gt;
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nb&quot;&gt;source &lt;/span&gt;activete tf
+&lt;p&gt;7af95a9ac99dd32c8bc51aa4531f75a836d1b5e6c29]# cat  memory.usage_in_bytes
+7934582784&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;确实是7g多
+- 查看内存使用情况memory.stat
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;&lt;img src=&quot;/img/20190328post2.jpg&quot; alt=&quot;picture2&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;7af95a9ac99dd32c8bc51aa4531f75a836d1b5e6c29]# cat memory.stat
+cache 1806925824
+rss 622092288
+rss_huge 287309824
+mapped_file 20508672
+swap 0
+pgpgin 17583007
+pgpgout 17135620
+pgfault 48558141
+pgmajfault 1180
+inactive_anon 17465344
+active_anon 628965376
+inactive_file 1058193408
+active_file 724385792
+unevictable 0
+hierarchical_memory_limit 8388608000
+hierarchical_memsw_limit 16777216000
+total_cache 1806925824
+total_rss 622092288
+total_rss_huge 287309824
+total_mapped_file 20508672
+total_swap 0
+total_pgpgin 17583007
+total_pgpgout 17135620
+total_pgfault 48558141
+total_pgmajfault 1180
+total_inactive_anon 17465344
+total_active_anon 628965376
+total_inactive_file 1058193408
+total_active_file 724385792
+total_unevictable 0&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;没有占用内存特别大的项，也就是远没达到top所见。另外忘记说，上边单位都是字节
 
-&lt;p&gt;For Chinese users, before starting the installation, you may change the source of conda as the same reason before. For more details, read the webcite of &lt;a href=&quot;https://mirror.tuna.tsinghua.edu.cn/help/anaconda/&quot;&gt;Tsinghua Mirror&lt;/a&gt;.
-Chinese users should type in this:&lt;/p&gt;
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;conda config &lt;span class=&quot;nt&quot;&gt;--add&lt;/span&gt; channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/
-conda config &lt;span class=&quot;nt&quot;&gt;--add&lt;/span&gt; channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/
-conda config &lt;span class=&quot;nt&quot;&gt;--set&lt;/span&gt; show_channel_urls &lt;span class=&quot;nb&quot;&gt;yes&lt;/span&gt;
+- 查看容器的内核内存使用量memory.kmem.usage_in_bytes
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Afterwards, type in the command to install TensorFlow you need:&lt;/p&gt;
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;conda &lt;span class=&quot;nb&quot;&gt;install &lt;/span&gt;tensorflow-gpu
+&lt;p&gt;7af95a9ac99dd32c8bc51aa4531f75a836d1b5e6c29]# cat memory.kmem.usage_in_bytes
+5513891840&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;果然是5g
+- 现在看下容器使用内核slab情况memory.kmem.slabinfo
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;&lt;img src=&quot;/img/20190328post3.jpg&quot; alt=&quot;picture3&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;If you want to install a specific version of tensorflow-gpu or cpu veison, you can change the command like this:&lt;/p&gt;
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;conda &lt;span class=&quot;nb&quot;&gt;install &lt;/span&gt;tensorflow-gpu&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;1.10.0  &lt;span class=&quot;c&quot;&gt;#if you want to install 1.10.0 version&lt;/span&gt;
-conda &lt;span class=&quot;nb&quot;&gt;install &lt;/span&gt;tensorflow  &lt;span class=&quot;c&quot;&gt;#if you want to install cpu version&lt;/span&gt;
+&lt;p&gt;7af95a9ac99dd32c8bc51aa4531f75a836d1b5e6c29]# cat memory.kmem.slabinfo
+slabinfo - version: 2.1
+…
+taskstats           1960   1960    328   49    4 : tunables    0    0    0 : slabdata     40     40      0
+xfs_ili           3945336 3945336    168   48    2 : tunables    0    0    0 : slabdata  82195  82195      0
+xfs_btree_cur       1560   1560    208   39    2 : tunables    0    0    0 : slabdata     40     40      0
+posix_timers_cache  16071  16071    248   33    2 : tunables    0    0    0 : slabdata    487    487      0
+scsi_cmd_cache      1440   1440    448   36    4 : tunables    0    0    0 : slabdata     40     40      0
+xfs_log_ticket      1760   1760    184   44    2 : tunables    0    0    0 : slabdata     40     40      0
+cfq_queue           1400   1400    232   35    2 : tunables    0    0    0 : slabdata     40     40      0
+inode_cache         2200   2200    592   55    8 : tunables    0    0    0 : slabdata     40     40      0
+radix_tree_node    35635  39984    584   28    4 : tunables    0    0    0 : slabdata   1428   1428      0
+bio-2               2040   2040    320   51    4 : tunables    0    0    0 : slabdata     40     40      0
+fanotify_event_info   2920   2920     56   73    1 : tunables    0    0    0 : slabdata     40     40      0
+blkdev_ioc          1560   1560    104   39    1 : tunables    0    0    0 : slabdata     40     40      0
+xfs_inode         3959772 3959772    960   34    8 : tunables    0    0    0 : slabdata 116478 116478      0
+Acpi-ParseExt       2240   2240     72   56    1 : tunables    0    0    0 : slabdata     40     40      0
+…&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;可以看出关于文件元数据缓存就占了4g多，上图第三列是对象数量，第四列是对象大小，所以xfs_inode占用内存=3959772 * 960 /1024/1024/1024,约等于3.5g，xfs_ili 0.7g，这已经4g多了。所以基本可以断定是业务进程操作文件多过导致
+- 查看容器内是否有大量小文件
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;After anaconda solve the environment, you just need to type in ‘y’ to confirm the installation.&lt;/p&gt;
+&lt;p&gt;[root@robot-speaker-e862e0-7c84fb65cd-whv5d /data/php/session]# ls -lR | grep “^-“| wc -l
+3941117
+```
+可见session文件数与slab中的xfs_inode基本相当，所以可以断定罪魁祸首在此&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;随着session文件越来越多，xfs_inode占用slab内存越来越多，不可回收SUnreclaim也会越来越大，所以最终会导致可用内存越来越少
+    &lt;h1 id=&quot;验证结果&quot;&gt;验证结果&lt;/h1&gt;
+    &lt;p&gt;经过与业务沟通，他们清理的大量session文件后，slab内存明显降下来了。
+&lt;img src=&quot;https://upload-images.jianshu.io/upload_images/14774548-8ac72bca565ccc45.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240&quot; alt=&quot;image.png&quot; /&gt;&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
 
-&lt;h2 id=&quot;anaconda-will-automatically-install-other-libs-and-toolkits-needed-by-tensorfloweg-cuda-and-cudnn-so-you-have-no-need-to-worry-about-this&quot;&gt;Anaconda will &lt;strong&gt;automatically&lt;/strong&gt; install other libs and toolkits needed by tensorflow(e.g. CUDA, and cuDNN), so you have no need to worry about this.&lt;/h2&gt;
+&lt;h1 id=&quot;结论&quot;&gt;结论&lt;/h1&gt;
+&lt;ol&gt;
+  &lt;li&gt;业务应尽可能的避免这种上百万级别的小文件&lt;/li&gt;
+  &lt;li&gt;更优雅的方式是限制容器内可用内核缓存的比例（还在尝试）
+    &lt;h1 id=&quot;参考文档&quot;&gt;参考文档&lt;/h1&gt;
+    &lt;p&gt;&lt;a href=&quot;https://access.redhat.com/documentation/zh-cn/red_hat_enterprise_linux/6/html/resource_management_guide/sec-memory&quot;&gt;https://access.redhat.com/documentation/zh-cn/red_hat_enterprise_linux/6/html/resource_management_guide/sec-memory&lt;/a&gt;
+&lt;a href=&quot;https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v1/memory.html&quot;&gt;https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v1/memory.html&lt;/a&gt;
+&lt;a href=&quot;https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html&quot;&gt;https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html&lt;/a&gt;&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
 
-&lt;p&gt;Type in &lt;code class=&quot;highlighter-rouge&quot;&gt;python&lt;/code&gt; to enter the python environment.&lt;/p&gt;
-&lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;tensorflow&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tf&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;tf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;__version__&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;When you see the version of tensorflow, such as 1.10.0, you have successfully install it.&lt;/p&gt;
-
-&lt;p&gt;That’s all, Thank you.&lt;/p&gt;
-
-&lt;p&gt;If you encounter any problems, you can open an issue in the &lt;strong&gt;Comment area&lt;/strong&gt;.&lt;/p&gt;
 </description>
-        <pubDate>Fri, 29 Mar 2019 00:00:00 +0800</pubDate>
-        <link>http://localhost:4000/2019/03/29/Install-TensorFlow-GPU-by-Anaconda(conda-install-tensorflow-gpu)/</link>
-        <guid isPermaLink="true">http://localhost:4000/2019/03/29/Install-TensorFlow-GPU-by-Anaconda(conda-install-tensorflow-gpu)/</guid>
+        <pubDate>Fri, 20 Dec 2019 00:00:00 +0800</pubDate>
+        <link>http://localhost:5555/2019/12/20/docker%E5%AE%B9%E5%99%A8%E7%9A%84%E5%86%85%E5%AD%98%E9%97%AE%E9%A2%98%E6%8E%92%E6%9F%A5-%E5%86%85%E5%AD%98%E4%B8%A2%E5%A4%B1/</link>
+        <guid isPermaLink="true">http://localhost:5555/2019/12/20/docker%E5%AE%B9%E5%99%A8%E7%9A%84%E5%86%85%E5%AD%98%E9%97%AE%E9%A2%98%E6%8E%92%E6%9F%A5-%E5%86%85%E5%AD%98%E4%B8%A2%E5%A4%B1/</guid>
         
-        <category>ubuntu</category>
         
-        <category>TensorFlow</category>
+      </item>
+    
+      <item>
+        <title>Lxcfs容器隔离技术实现原理分析之loadavg、cpuonline</title>
+        <description>&lt;h1 id=&quot;lxcfs是什么&quot;&gt;lxcfs是什么&lt;/h1&gt;
+&lt;p&gt;我们知道runc没有做到完全隔离/proc、/sys路径下的文件，所以容器内通过top、free等命令看到的数据都是物理机上的。对于习惯了虚机，物理机的同学来说不太友好，而且这些命令似乎也失去了本质意义。&lt;strong&gt;lxcfs作用就是将容器内/proc、/sys文件与物理机隔离，让top等命令显示容器内真实数据&lt;/strong&gt;。&lt;/p&gt;
+&lt;h1 id=&quot;说明&quot;&gt;说明&lt;/h1&gt;
+&lt;p&gt;lxcfs是以用户空间文件系统（Filesystem in Userspace）为基础，以cgroup技术实现的用户空间的虚拟文件系统。先对fuse和cgroup有个大致了解，看本文效果更好些。本文不介绍lxcfs的安装及使用，网上不乏这样的好文章。我们主要介绍下lxcfs对cpuonline、loadavg的现实，这两部分弄懂，其它也大体相同。&lt;/p&gt;
+
+&lt;h1 id=&quot;容器中读取lxcfs文件系统&quot;&gt;容器中读取lxcfs文件系统&lt;/h1&gt;
+&lt;p&gt;lxcfs程序启动时会指定一个路径（如下图是/var/lib/lxcfs）作为挂载点，以后读取这个路径的下文件（cgroup、proc、sys）vfs都会调用内核fuse，fuse回调lxcfs实现的文件操作函数。容器内读取lxcfs文件系统中的数据时，通过gblic系统调用vfs接口然后转到fuse内核模块，内核模块fuse回调lxcfs程序中实现的回调函数，获取容器的cgroup，然后去宿主机对应cgroup下读取并计算后得到容器的实际mem、cpu等信息。lxcfs将物理机的cgroups挂载到运行时环境/run/lxcfs/controllers，但直接在物理机上看不见，因为程序中用unshare做了mounts namespace隔离。lxcfs程序中所有的cgroups信息都从/run/lxcfs/controllers下获得。
+&lt;img src=&quot;https://upload-images.jianshu.io/upload_images/14774548-417f332fcb4cee01.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240&quot; alt=&quot;image.png&quot; /&gt;&lt;/p&gt;
+&lt;h1 id=&quot;源码&quot;&gt;源码&lt;/h1&gt;
+&lt;p&gt;因为工作中正好需要这两部分，所以主要介绍下cpuonline和loadavg的实现。nginx、java等程序根据cpu核心数启动相应个数的进程，cpuonline是相关系统调用的数据来源。没隔离导致的容器内获取到cpu核数是物理机的，本应该创建2个进程，实际却创建40个（容器2c，物理机40c），由于更多的上下文切换导致明显的性能下降。loadavg目前没看到有关的分析，这里也简单介绍下。&lt;/p&gt;
+
+&lt;h4 id=&quot;看下隔离效果&quot;&gt;看下隔离效果&lt;/h4&gt;
+&lt;p&gt;物理机40c128g&lt;/p&gt;
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;cpuonline
+物理机
+&lt;img src=&quot;https://upload-images.jianshu.io/upload_images/14774548-57f7499808340da8.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240&quot; alt=&quot;image.png&quot; /&gt;
+容器2c4g
+&lt;img src=&quot;https://upload-images.jianshu.io/upload_images/14774548-890d289a22802e60.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240&quot; alt=&quot;image.png&quot; /&gt;&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;loadavg
+物理机
+&lt;img src=&quot;https://upload-images.jianshu.io/upload_images/14774548-fd7a41a4680c3c26.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240&quot; alt=&quot;image.png&quot; /&gt;
+容器2c4g
+&lt;img src=&quot;https://upload-images.jianshu.io/upload_images/14774548-a1c870e10dd8ce16.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240&quot; alt=&quot;image.png&quot; /&gt;&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;可以看到cpuonline和load average都已经隔离&lt;/p&gt;
+&lt;h4 id=&quot;实现分析&quot;&gt;实现分析&lt;/h4&gt;
+&lt;p&gt;&lt;strong&gt;注&lt;/strong&gt;：cgropu的各个controller文件在main函数执行前打开，保存在fd_hierarchies中，后面使用直接掉openat，不是每次都要open、close文件。通过c语言的__attribute__((constructor)) 属性，声明collect_and_mount_subsystems这个函数。
+看下collect_and_mount_subsystems&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;static void __attribute__((constructor)) collect_and_mount_subsystems(void)
+{
+	FILE *f;
+	char *cret, *line = NULL;
+	char cwd[MAXPATHLEN];
+	size_t len = 0;
+	int i, init_ns = -1;
+	bool found_unified = false;
+
+	if ((f = fopen(&quot;/proc/self/cgroup&quot;, &quot;r&quot;)) == NULL) {
+		lxcfs_error(&quot;Error opening /proc/self/cgroup: %s\n&quot;, strerror(errno));
+		return;
+	}
+	// 读取宿主机上namespaces controller保存到hierarchies
+	while (getline(&amp;amp;line, &amp;amp;len, f) != -1) {
+......
+		if (!store_hierarchy(line, p))
+			goto out;
+	}
+
+	/* Preserve initial namespace. */
+	init_ns = preserve_mnt_ns(getpid());
+	if (init_ns &amp;lt; 0) {
+		lxcfs_error(&quot;%s\n&quot;, &quot;Failed to preserve initial mount namespace.&quot;);
+		goto out;
+	}
+
+	fd_hierarchies = malloc(sizeof(int) * num_hierarchies);
+	if (!fd_hierarchies) {
+		lxcfs_error(&quot;%s\n&quot;, strerror(errno));
+		goto out;
+	}
+
+	for (i = 0; i &amp;lt; num_hierarchies; i++)
+		fd_hierarchies[i] = -1;
+
+	cret = getcwd(cwd, MAXPATHLEN);
+	if (!cret)
+		lxcfs_debug(&quot;Could not retrieve current working directory: %s.\n&quot;, strerror(errno));
+
+	/* This function calls unshare(CLONE_NEWNS) our initial mount namespace
+	 * to privately mount lxcfs cgroups. */
+	// 关键是这里，将cgroup下各个控制模块，挂载到lxcfs进程的自由的mount ns下（/run/lxcfs/container）
+	if (!cgfs_setup_controllers()) {
+		lxcfs_error(&quot;%s\n&quot;, &quot;Failed to setup private cgroup mounts for lxcfs.&quot;);
+		goto out;
+	}
+......
+}
+static bool cgfs_setup_controllers(void)
+{
+	// 主要调用unshare 创建私有的mount ns
+	if (!cgfs_prepare_mounts())
+		return false;
+
+	if (!cgfs_mount_hierarchies()) {
+		lxcfs_error(&quot;%s\n&quot;, &quot;Failed to set up private lxcfs cgroup mounts.&quot;);
+		return false;
+	}
+
+	if (!permute_root())
+		return false;
+
+	return true;
+}
+static bool cgfs_mount_hierarchies(void)
+{
+	char *target;
+	size_t clen, len;
+	int i, ret;
+
+	for (i = 0; i &amp;lt; num_hierarchies; i++) {
+		char *controller = hierarchies[i];
+
+		clen = strlen(controller);
+		len = strlen(BASEDIR) + clen + 2;
+		target = malloc(len);
+		if (!target)
+			return false;
+
+		ret = snprintf(target, len, &quot;%s/%s&quot;, BASEDIR, controller);
+		if (ret &amp;lt; 0 || ret &amp;gt;= len) {
+			free(target);
+			return false;
+		}
+		if (mkdir(target, 0755) &amp;lt; 0 &amp;amp;&amp;amp; errno != EEXIST) {
+			free(target);
+			return false;
+		}
+		if (!strcmp(controller, &quot;unified&quot;))
+			ret = mount(&quot;none&quot;, target, &quot;cgroup2&quot;, 0, NULL);
+		else
+			ret = mount(controller, target, &quot;cgroup&quot;, 0, controller);
+		if (ret &amp;lt; 0) {
+			lxcfs_error(&quot;Failed mounting cgroup %s: %s\n&quot;, controller, strerror(errno));
+			free(target);
+			return false;
+		}
+                // 将所有cgroup controller 文件打开，保存文件描述符
+		fd_hierarchies[i] = open(target, O_DIRECTORY);
+		if (fd_hierarchies[i] &amp;lt; 0) {
+			free(target);
+			return false;
+		}
+		free(target);
+	}
+	return true;
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;lxcfs.c  main中主要是解析命令行参数，并调用fuse提供的fuse_main函数将lxcfs相关的文件操作注册，并传入挂载点。&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;......
+if (!fuse_main(nargs, newargv, &amp;amp;lxcfs_ops, opts))
+......
+const struct fuse_operations lxcfs_ops = {
+	.getattr = lxcfs_getattr,
+	.readlink = NULL,
+	.getdir = NULL,
+	.mknod = NULL,
+	.mkdir = lxcfs_mkdir,
+	.unlink = NULL,
+	.rmdir = lxcfs_rmdir,
+	.symlink = NULL,
+	.rename = NULL,
+	.link = NULL,
+	.chmod = lxcfs_chmod,
+	.chown = lxcfs_chown,
+	.truncate = lxcfs_truncate,
+	.utime = NULL,
+
+	.open = lxcfs_open,
+	.read = lxcfs_read,
+	.release = lxcfs_release,
+	.write = lxcfs_write,
+
+	.statfs = NULL,
+	.flush = lxcfs_flush,
+	.fsync = lxcfs_fsync,
+
+	.setxattr = NULL,
+	.getxattr = NULL,
+	.listxattr = NULL,
+	.removexattr = NULL,
+
+	.opendir = lxcfs_opendir,
+	.readdir = lxcfs_readdir,
+	.releasedir = lxcfs_releasedir,
+
+	.fsyncdir = NULL,
+	.init = NULL,
+	.destroy = NULL,
+	.access = lxcfs_access,
+	.create = NULL,
+	.ftruncate = NULL,
+	.fgetattr = NULL,
+};
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;h6 id=&quot;cpuonline&quot;&gt;cpuonline&lt;/h6&gt;
+&lt;ol&gt;
+  &lt;li&gt;cpuonline信息在/sys/devices/system/cpu/路径下，lxcfs将对/sys（当然这里使用任何路径都可以）的操作注册到fuse
+lxcfs.c：
+```
+const struct fuse_operations lxcfs_ops = {
+……
+ .open = lxcfs_open,
+ .read = lxcfs_read,
+ .release = lxcfs_release,
+ .write = lxcfs_write,
+……
+}&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;static int lxcfs_read(const char *path, char *buf, size_t size, off_t offset,
+		struct fuse_file_info *fi)
+{
+	int ret;
+	if (strncmp(path, “/cgroup”, 7) == 0) {
+		up_users();
+		ret = do_cg_read(path, buf, size, offset, fi);
+		down_users();
+		return ret;
+	}
+	if (strncmp(path, “/proc”, 5) == 0) {
+		up_users();
+		ret = do_proc_read(path, buf, size, offset, fi);
+		down_users();
+		return ret;
+	}
+	if (strncmp(path, “/sys”, 4) == 0) {
+		up_users();
+		ret = do_sys_read(path, buf, size, offset, fi);
+		down_users();
+		return ret;
+	}&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;return -EINVAL; }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;static int do_sys_read(const char &lt;em&gt;path, char *buf, size_t size, off_t offset,
+		struct fuse_file_info *fi)
+{
+	int (&lt;/em&gt;sys_read)(const char *path, char *buf, size_t size, off_t offset,
+		struct fuse_file_info *fi);
+	char *error;&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;dlerror();    /* Clear any existing error */
+sys_read = (int (*)(const char *, char *, size_t, off_t, struct fuse_file_info *)) dlsym(dlopen_handle, &quot;sys_read&quot;);
+error = dlerror();
+if (error != NULL) {
+	lxcfs_error(&quot;%s\n&quot;, error);
+	return -1;
+}
+
+return sys_read(path, buf, size, offset, fi); } ``` 文件操作相关代码（bindings.c、sysfs_fuse.c，cpuset.c）被封装成liblxcfs.so动态库，供lxcfs.c调用。上面do_sys_read通过dlsym获取liblxcfs.so动态库中的sys_read函数。 2. 接着看下读cpuonline的过程 sysfs_fuse.c： ``` int sys_read(const char *path, char *buf, size_t size, off_t offset,
+     struct fuse_file_info *fi) {
+struct file_info *f = (struct file_info *)fi-&amp;gt;fh;
+
+switch (f-&amp;gt;type) {
+//cpuonline 模块，type在open时设置，这里不做过多介绍，主要看下
+//sys_devices_system_cpu_online_read函数的实现
+case LXC_TYPE_SYS_DEVICES_SYSTEM_CPU_ONLINE:  
+	return sys_devices_system_cpu_online_read(buf, size, offset, fi);
+case LXC_TYPE_SYS_DEVICES:
+case LXC_TYPE_SYS_DEVICES_SYSTEM:
+case LXC_TYPE_SYS_DEVICES_SYSTEM_CPU:
+default:
+	return -EINVAL;
+} }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;static int sys_devices_system_cpu_online_read(char *buf, size_t size,
+					      off_t offset,
+					      struct fuse_file_info *fi)
+{
+	//获取上下文信息，主要是读取cuponline进程（例如cat /sys/devices/system/cpu/online的cat进程，以下简称“调用进程”）的进程id
+	struct fuse_context *fc = fuse_get_context();
+	struct file_info *d = (struct file_info *)fi-&amp;gt;fh;
+	char *cache = d-&amp;gt;buf;
+	char *cg;
+	char *cpuset = NULL;
+	bool use_view;&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;int max_cpus = 0;
+pid_t initpid;
+ssize_t total_len = 0;
+
+if (offset) {
+	if (!d-&amp;gt;cached)
+		return 0;
+	if (offset &amp;gt; d-&amp;gt;size)
+		return -EINVAL;
+	int left = d-&amp;gt;size - offset;
+	total_len = left &amp;gt; size ? size : left;
+	memcpy(buf, cache + offset, total_len);
+	return total_len;
+}
+
+//获取容器中1号进程在物理机上的进程id；initpid返回为0时，说明调用进程是物理上的进程
+initpid = lookup_initpid_in_store(fc-&amp;gt;pid);
+if (initpid &amp;lt;= 0)
+	initpid = fc-&amp;gt;pid;
+//获取容器1号进程的cgroup
+  	//例如：docker/368adedeb87172d68388cee9818e873d73503a5b1d1d2a6b47fbd053f6d68601
+cg = get_pid_cgroup(initpid, &quot;cpuset&quot;);
+if (!cg)
+	return read_file(&quot;/sys/devices/system/cpu/online&quot;, buf, size, d);
+prune_init_slice(cg);
+
+cpuset = get_cpuset(cg);
+if (!cpuset)
+	goto err;
+// 检查cpu、 cpuacct 控制器是否存在，不存在直接返回物理机cpuonine信息
+use_view = use_cpuview(cg);
+
+if (use_view)
+	// 获取容器真正可使用的cpu个数，如果容器没配置cpu quota（默认-1），则直接返回物理信息
+	max_cpus = max_cpu_count(cg);
+
+if (max_cpus == 0)
+	return read_file(&quot;/sys/devices/system/cpu/online&quot;, buf, size, d);
+if (max_cpus &amp;gt; 1)
+	total_len = snprintf(d-&amp;gt;buf, d-&amp;gt;buflen, &quot;0-%d\n&quot;, max_cpus - 1);
+else
+	total_len = snprintf(d-&amp;gt;buf, d-&amp;gt;buflen, &quot;0\n&quot;);
+if (total_len &amp;lt; 0 || total_len &amp;gt;= d-&amp;gt;buflen) {
+	lxcfs_error(&quot;%s\n&quot;, &quot;failed to write to cache&quot;);
+	return 0;
+}
+
+d-&amp;gt;size = (int)total_len;
+d-&amp;gt;cached = 1;
+
+if (total_len &amp;gt; size)
+	total_len = size;
+
+memcpy(buf, d-&amp;gt;buf, total_len); err:
+free(cpuset);
+free(cg);
+return total_len; } /*  * Return the maximum number of visible CPUs based on CPU quotas.  * If there is no quota set, zero is returned.  */ int max_cpu_count(const char *cg) {
+int rv, nprocs;
+int64_t cfs_quota, cfs_period;
+int nr_cpus_in_cpuset = 0;
+char *cpuset = NULL;
+// 读取物理机上容器cpu的quota值
+if (!read_cpu_cfs_param(cg, &quot;quota&quot;, &amp;amp;cfs_quota))
+	return 0;
+// 读取物理机上容器cpu的period值
+if (!read_cpu_cfs_param(cg, &quot;period&quot;, &amp;amp;cfs_period))
+	return 0;
+
+cpuset = get_cpuset(cg);
+if (cpuset)
+	nr_cpus_in_cpuset = cpu_number_in_cpuset(cpuset);
+
+if (cfs_quota &amp;lt;= 0 || cfs_period &amp;lt;= 0){
+	if (nr_cpus_in_cpuset &amp;gt; 0)
+		return nr_cpus_in_cpuset;
+
+	return 0;
+}
+
+// 容器何用的cpu计算
+rv = cfs_quota / cfs_period;
+
+/* In case quota/period does not yield a whole number, add one CPU for
+ * the remainder.这里的意思是限制cpu为0.5和，视图效果为1核。1.5 即 2
+ */
+if ((cfs_quota % cfs_period) &amp;gt; 0)
+	rv += 1;
+
+/*获取可用的cpu核数sysconf(_SC_NPROCESSORS_ONLN)*/
+nprocs = get_nprocs();
+
+if (rv &amp;gt; nprocs)
+	rv = nprocs;
+
+/* use min value in cpu quota and cpuset */
+if (nr_cpus_in_cpuset &amp;gt; 0 &amp;amp;&amp;amp; nr_cpus_in_cpuset &amp;lt; rv)
+	rv = nr_cpus_in_cpuset;
+
+return rv; } // 看下quota是怎么获取的 /*  * Read cgroup CPU quota parameters from `cpu.cfs_quota_us` or `cpu.cfs_period_us`,  * depending on `param`. Parameter value is returned throuh `value`.  */ static bool read_cpu_cfs_param(const char *cg, const char *param, int64_t *value) {
+bool rv = false;
+char file[11 + 6 + 1]; // cpu.cfs__us + quota/period + \0
+char *str = NULL;
+
+sprintf(file, &quot;cpu.cfs_%s_us&quot;, param);
+
+// 重点是这里
+if (!cgfs_get_value(&quot;cpu&quot;, cg, file, &amp;amp;str))
+	goto err; ...... } bool cgfs_get_value(const char *controller, const char *cgroup, const char *file, char **value) {
+int ret, fd, cfd;
+size_t len;
+char *fnam, *tmpc;
+// 获取cpu controller文件描述符，到之前说过fd_hierarchies中查
+tmpc = find_mounted_controller(controller, &amp;amp;cfd);
+if (!tmpc)
+	return false;
+
+/* Make sure we pass a relative path to *at() family of functions.
+ * . + /cgroup + / + file + \0
+ */
+len = strlen(cgroup) + strlen(file) + 3;
+fnam = alloca(len);
+ret = snprintf(fnam, len, &quot;%s%s/%s&quot;, *cgroup == '/' ? &quot;.&quot; : &quot;&quot;, cgroup, file);
+if (ret &amp;lt; 0 || (size_t)ret &amp;gt;= len)
+	return false;
+// fd也就是 /run/lxcfs/controllers/cpu/docker/dockerid/cpu.cfs_quota_us
+fd = openat(cfd, fnam, O_RDONLY);
+if (fd &amp;lt; 0)
+	return false;
+// 读值cfs_quota_us
+*value = slurp_file(fnam, fd);
+return *value != NULL; } ``` ######  loadavg - 平均负载的概念：平均负载是一段时间内***活跃task队列***的平均值，活跃进程指的是TASK_RUNNING, TASK_UNINTERRUPTIBLE状态的进程。内核计算loadavg的方式，感兴趣的同学可以看看源码。 - loadavg和其他部分不太一样的是，lxcfs需要用daemon进程计算平均负载，因为我们需要的容器（也就是特定进程的cgroup）的平均负载，宿主机没有这部分数据。lxcfs用与内核完全相同的方式计算负载，所以loadavg的值还是相当准足准确的。**宿主机计算的平均负载是根据所有的task（进程、线程）计算得到，容器的平均负载是根据容器内的进程计算而得。**
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;loadavg daemon分析
+load daemon的调用流程：main-&amp;gt; start_loadavg-&amp;gt; load_daemon-&amp;gt; load_begin
+load_begin就像注释写的一样，每5s遍历一次load哈希表，并更新负载值
+```
+/*
+    &lt;ul&gt;
+      &lt;li&gt;Traverse the hash table and update it.
+ */
+void *load_begin(void *arg)
+{&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;……
+	while (1) {
+		if (loadavg_stop == 1)
+			return NULL;&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;	time1 = clock();
+	for (i = 0; i &amp;lt; LOAD_SIZE; i++) {
+		pthread_mutex_lock(&amp;amp;load_hash[i].lock);
+		if (load_hash[i].next == NULL) {
+			pthread_mutex_unlock(&amp;amp;load_hash[i].lock);
+			continue;
+		}
+		f = load_hash[i].next;
+		first_node = 1;
+		while (f) { ......
+			// 更新负载
+			sum = refresh_load(f, path);
+			if (sum == 0) {
+				f = del_node(f, i);
+			} else { out:					f = f-&amp;gt;next;
+			}
+			free(path); ......
+	}
+
+	if (loadavg_stop == 1)
+		return NULL;
+
+	time2 = clock();
+	usleep(FLUSH_TIME * 1000000 - (int)((time2 - time1) * 1000000 / CLOCKS_PER_SEC));
+} } ``` 主要分析下refresh_load ``` /*  * Return 0 means that container p-&amp;gt;cg is closed.  * Return -1 means that error occurred in refresh.  * Positive num equals the total number of pid.  */ static int refresh_load(struct load_node *p, char *path) {
+FILE *f = NULL;
+char **idbuf;
+char proc_path[256];
+int i, ret, run_pid = 0, total_pid = 0, last_pid = 0;
+char *line = NULL;
+size_t linelen = 0;
+int sum, length;
+DIR *dp;
+struct dirent *file;
+
+do {
+	idbuf = malloc(sizeof(char *));
+} while (!idbuf);
+    // 这里从/sys/fs/cgroup/cpu/docker/containerid/cgroup.procs to find the process pid.那容器内进程的pid
+sum = calc_pid(&amp;amp;idbuf, path, DEPTH_DIR, 0, p-&amp;gt;cfd);
+/*  normal exit  */
+if (sum == 0)
+	goto out;
+
+for (i = 0; i &amp;lt; sum; i++) {
+	/*clean up '\n' */
+	length = strlen(idbuf[i])-1;
+	idbuf[i][length] = '\0';
+	ret = snprintf(proc_path, 256, &quot;/proc/%s/task&quot;, idbuf[i]);
+	if (ret &amp;lt; 0 || ret &amp;gt; 255) {
+		lxcfs_error(&quot;%s\n&quot;, &quot;snprintf() failed in refresh_load.&quot;);
+		i = sum;
+		sum = -1;
+		goto err_out;
+	}
+
+	dp = opendir(proc_path);
+	if (!dp) {
+		lxcfs_error(&quot;%s\n&quot;, &quot;Open proc_path failed in refresh_load.&quot;);
+		continue;
+	}
+            // 遍历/proc/&amp;lt;pid&amp;gt;/task 目录（一个进程中创建的每个线程，/proc/&amp;lt;pid&amp;gt;/task 中会创建一个相应的目录），查找状态为R或者D的task
+	while ((file = readdir(dp)) != NULL) {
+		if (strncmp(file-&amp;gt;d_name, &quot;.&quot;, 1) == 0)
+			continue;
+		if (strncmp(file-&amp;gt;d_name, &quot;..&quot;, 1) == 0)
+			continue;
+		total_pid++;
+		/* We make the biggest pid become last_pid.*/
+		ret = atof(file-&amp;gt;d_name);
+		last_pid = (ret &amp;gt; last_pid) ? ret : last_pid;
+
+		ret = snprintf(proc_path, 256, &quot;/proc/%s/task/%s/status&quot;, idbuf[i], file-&amp;gt;d_name);
+		if (ret &amp;lt; 0 || ret &amp;gt; 255) {
+			lxcfs_error(&quot;%s\n&quot;, &quot;snprintf() failed in refresh_load.&quot;);
+			i = sum;
+			sum = -1;
+			closedir(dp);
+			goto err_out;
+		}
+		f = fopen(proc_path, &quot;r&quot;);
+		if (f != NULL) {
+			while (getline(&amp;amp;line, &amp;amp;linelen, f) != -1) {
+				/* Find State */
+				if ((line[0] == 'S') &amp;amp;&amp;amp; (line[1] == 't'))
+					break;
+			}
+		if ((line[7] == 'R') || (line[7] == 'D'))
+			run_pid++;
+		fclose(f);
+		}
+	}
+	closedir(dp);
+}
+/*Calculate the loadavg.*/
+// 获取到活跃的task数量后，是时候表演真正的技术了（计算平均负载）。计算公式与内核一致：load(t) = load(t-1) e-5/60 + n (1 - e-5/60)
+// 具体含义可以参考：[https://www.helpsystems.com/resources/guideshow-it-works](https://w/unix-load-average-part-1-ww.helpsystems.com/resources/guides/unix-load-average-part-1-how-it-works)
+
+p-&amp;gt;avenrun[0] = calc_load(p-&amp;gt;avenrun[0], EXP_1, run_pid);
+p-&amp;gt;avenrun[1] = calc_load(p-&amp;gt;avenrun[1], EXP_5, run_pid);
+p-&amp;gt;avenrun[2] = calc_load(p-&amp;gt;avenrun[2], EXP_15, run_pid);
+p-&amp;gt;run_pid = run_pid;
+p-&amp;gt;total_pid = total_pid;
+p-&amp;gt;last_pid = last_pid;
+
+free(line); err_out:
+for (; i &amp;gt; 0; i--)
+	free(idbuf[i-1]); out:
+free(idbuf);
+return sum; } ``` 2. 读取loadavg 负载计算明白了，读就简单了。这里注意下的是，load_hash，哈希表中的数据是容器第一次读/proc/loadavg时插入的（毕竟没办法事先知道容器的进程cgroup）。 ``` static int proc_loadavg_read(char *buf, size_t size, off_t offset,
+	struct fuse_file_info *fi) {
+struct fuse_context *fc = fuse_get_context();
+struct file_info *d = (struct file_info *)fi-&amp;gt;fh;
+pid_t initpid;
+char *cg;
+size_t total_len = 0;
+char *cache = d-&amp;gt;buf;
+struct load_node *n;
+int hash;
+int cfd, rv = 0;
+unsigned long a, b, c;
+
+if (offset) {
+	if (offset &amp;gt; d-&amp;gt;size)
+		return -EINVAL;
+	if (!d-&amp;gt;cached)
+		return 0;
+	int left = d-&amp;gt;size - offset;
+	total_len = left &amp;gt; size ? size : left;
+	memcpy(buf, cache + offset, total_len);
+	return total_len;
+}
+if (!loadavg)
+	return read_file(&quot;/proc/loadavg&quot;, buf, size, d);
+
+initpid = lookup_initpid_in_store(fc-&amp;gt;pid);
+if (initpid &amp;lt;= 0)
+	initpid = fc-&amp;gt;pid;
+cg = get_pid_cgroup(initpid, &quot;cpu&quot;);
+if (!cg)
+	return read_file(&quot;/proc/loadavg&quot;, buf, size, d);
+
+prune_init_slice(cg);
+hash = calc_hash(cg) % LOAD_SIZE;
+// 根据cgroup在hash表查找node
+n = locate_node(cg, hash);
+
+/* First time */
+// 第一读时，先把节点信息插到hash边
+if (n == NULL) {
+	if (!find_mounted_controller(&quot;cpu&quot;, &amp;amp;cfd)) {
+		/*
+		 * In locate_node() above, pthread_rwlock_unlock() isn't used
+		 * because delete is not allowed before read has ended.
+		 */
+		pthread_rwlock_unlock(&amp;amp;load_hash[hash].rdlock);
+		rv = 0;
+		goto err;
+	}
+	do {
+		n = malloc(sizeof(struct load_node));
+	} while (!n);
+
+	do {
+		n-&amp;gt;cg = malloc(strlen(cg)+1);
+	} while (!n-&amp;gt;cg);
+	strcpy(n-&amp;gt;cg, cg);
+	n-&amp;gt;avenrun[0] = 0;
+	n-&amp;gt;avenrun[1] = 0;
+	n-&amp;gt;avenrun[2] = 0;
+	n-&amp;gt;run_pid = 0;
+	n-&amp;gt;total_pid = 1;
+	n-&amp;gt;last_pid = initpid;
+	n-&amp;gt;cfd = cfd;
+	insert_node(&amp;amp;n, hash);
+}
+// 第二次以后开始从daemon的计算结果中读取
+a = n-&amp;gt;avenrun[0] + (FIXED_1/200);
+b = n-&amp;gt;avenrun[1] + (FIXED_1/200);
+c = n-&amp;gt;avenrun[2] + (FIXED_1/200);
+total_len = snprintf(d-&amp;gt;buf, d-&amp;gt;buflen, &quot;%lu.%02lu %lu.%02lu %lu.%02lu %d/%d %d\n&quot;,
+	LOAD_INT(a), LOAD_FRAC(a),
+	LOAD_INT(b), LOAD_FRAC(b),
+	LOAD_INT(c), LOAD_FRAC(c),
+	n-&amp;gt;run_pid, n-&amp;gt;total_pid, n-&amp;gt;last_pid);
+pthread_rwlock_unlock(&amp;amp;load_hash[hash].rdlock);
+if (total_len &amp;lt; 0 || total_len &amp;gt;=  d-&amp;gt;buflen) {
+	lxcfs_error(&quot;%s\n&quot;, &quot;Failed to write to cache&quot;);
+	rv = 0;
+	goto err;
+}
+d-&amp;gt;size = (int)total_len;
+d-&amp;gt;cached = 1;
+
+if (total_len &amp;gt; size)
+	total_len = size;
+memcpy(buf, d-&amp;gt;buf, total_len);
+rv = total_len;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;err:
+	free(cg);
+	return rv;
+}
+```&lt;/p&gt;
+
+&lt;h1 id=&quot;参考文章&quot;&gt;参考文章&lt;/h1&gt;
+&lt;p&gt;&lt;a href=&quot;https://www.helpsystems.com/resources/guides/unix-load-average-part-1-how-it-works&quot;&gt;https://www.helpsystems.com/resources/guides/unix-load-average-part-1-how-it-works&lt;/a&gt;
+&lt;a href=&quot;https://github.com/libfuse/libfuse&quot;&gt;https://github.com/libfuse/libfuse&lt;/a&gt;
+&lt;a href=&quot;https://github.com/lxc/lxcfs&quot;&gt;https://github.com/lxc/lxcfs&lt;/a&gt;
+&lt;a href=&quot;https://www.helpsystems.com/resources/guides/unix-load-average-part-1-how-it-works&quot;&gt;https://www.helpsystems.com/resources/guides/unix-load-average-part-1-how-it-works&lt;/a&gt;&lt;/p&gt;
+</description>
+        <pubDate>Mon, 11 Nov 2019 00:00:00 +0800</pubDate>
+        <link>http://localhost:5555/2019/11/11/lxcfs%E5%AE%B9%E5%99%A8%E9%9A%94%E7%A6%BB%E6%8A%80%E6%9C%AF%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86%E5%88%86%E6%9E%90%E4%B9%8Bloadavg-cpuonline/</link>
+        <guid isPermaLink="true">http://localhost:5555/2019/11/11/lxcfs%E5%AE%B9%E5%99%A8%E9%9A%94%E7%A6%BB%E6%8A%80%E6%9C%AF%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86%E5%88%86%E6%9E%90%E4%B9%8Bloadavg-cpuonline/</guid>
         
-        <category>深度学习</category>
         
-        <category>CUDA</category>
+      </item>
+    
+      <item>
+        <title>Es告警之elastalert入门教程(容器部署)</title>
+        <description>&lt;h1 id=&quot;概述&quot;&gt;概述&lt;/h1&gt;
+&lt;p&gt;        我们部署的版本是此篇文章发布时ElastAlert（V0.2.1）、ElastAlert server（3.0.0-beta.0） 、elastalert-kibana-plugin（1.1.0）的最新版本。es和kibana的版本是7.2.0。ES和kibana部署不是本篇的重点，这里不做介绍。
+        入正题之前得先说下ES，Elasticsearch 是一个分布式、可扩展、实时的搜索与数据分析引擎。 它能从项目一开始就赋予你的数据以搜索、分析和探索的能力。我们容器服务的日志现在大多数都入到了qbus，然后可以用es消费，通过kibana方便的查看日志。但是负责es的同事和我们都没有支持日志告警，目前是一个短板。X-Pack提供了报警组件Alert，但是这个功能是需要付费，ElastAlert能够完美替代Alert提供的所有功能。ElastAlert目前有6k+star，维护较好很受欢迎，使用python编写，V0.2.0以后使用python3，python2不再维护，以致在虚机物理机部署的坑很多，最终也是以容器的方式成功搭建。因为公司es之后要升级到7.2版本，ElastAlertV0.2.1（最新版本）才对es7支持的很好，elastalert-kibana-plugin最新版本才支持kibana7。&lt;/p&gt;
+&lt;h1 id=&quot;相关组件&quot;&gt;相关组件&lt;/h1&gt;
+&lt;ul&gt;
+  &lt;li&gt;告警服务ElastAlert，版本V0.2.1&lt;/li&gt;
+  &lt;li&gt;展示插件elastalert-kibana-plugin，kibana安装这个组件后，用户可以通过kibana管理告警规则（增、删、改、查，及测试）。&lt;/li&gt;
+  &lt;li&gt;api服务ElastAlert  server，暴露restf api提供管理告警规则的能力，与elastalert-kibana-plugin配合使用。这个服务启动时同时启动ElastAlert。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;elastalert-kibana-plugin对ES6.3开始提供支持，公司目前使用的是ES6.2，之后要升级到ES7，所以ElastAlert用V0.2.1，ElastAlert  server 3.0.0-beta.0,elastalert-kibana-plugin 1.1.0。&lt;/p&gt;
+&lt;h1 id=&quot;搭建&quot;&gt;搭建&lt;/h1&gt;
+&lt;p&gt;        ElastAlert V0.2.1需要python3，目前我们使用linux内核都会默认装python2，安装python3后，使用混合环境安装ElastAlert 很多依赖装不成功，亦或装成功后模块有找不到，所以最终打算使用docker multi stage build方式构建ElastAlert  server镜像，以容器的方式启动。
+        官网上提供了ElastAlert  server镜像构建方式，但很久不维护，还是使用python2构建的老的版本。我们需要重新构建。&lt;/p&gt;
+&lt;ol&gt;
+  &lt;li&gt;git clone &lt;a href=&quot;https://github.com/bitsensor/elastalert.git&quot;&gt;https://github.com/bitsensor/elastalert.git&lt;/a&gt; &amp;amp;&amp;amp; cd elastalert  修改  Dockerfile。这一步很重要下载的是elastalert server，不是elastalert，elastalert只需在Dockerfile中指定版本，直接下载zip包。
+```
+FROM python:3.6-alpine as pyea
+ENV ELASTALERT_VERSION=v0.2.1
+    &lt;h1 id=&quot;url-from-which-to-download-elastalert&quot;&gt;URL from which to download Elastalert.&lt;/h1&gt;
+    &lt;p&gt;ENV ELASTALERT_URL=https://github.com/Yelp/elastalert/archive/$ELASTALERT_VERSION.zip&lt;/p&gt;
+    &lt;h1 id=&quot;elastalert-home-directory-full-path&quot;&gt;Elastalert home directory full path.&lt;/h1&gt;
+    &lt;p&gt;ENV ELASTALERT_HOME /opt/elastalert
+WORKDIR /opt
+RUN apk add –update –no-cache ca-certificates openssl-dev openssl libffi-dev gcc musl-dev wget &amp;amp;&amp;amp; \&lt;/p&gt;
+    &lt;h1 id=&quot;download-and-unpack-elastalert&quot;&gt;Download and unpack Elastalert.&lt;/h1&gt;
+    &lt;p&gt;wget -O elastalert.zip “${ELASTALERT_URL}” &amp;amp;&amp;amp; &lt;br /&gt;
+ unzip elastalert.zip &amp;amp;&amp;amp; &lt;br /&gt;
+ rm elastalert.zip &amp;amp;&amp;amp; &lt;br /&gt;
+ mv e* “${ELASTALERT_HOME}”
+WORKDIR “${ELASTALERT_HOME}”&lt;/p&gt;
+    &lt;h1 id=&quot;install-elastalert&quot;&gt;Install Elastalert.&lt;/h1&gt;
+    &lt;h1 id=&quot;see-httpsgithubcomyelpelastalertissues1654&quot;&gt;see: https://github.com/Yelp/elastalert/issues/1654&lt;/h1&gt;
+    &lt;p&gt;RUN python setup.py install &amp;amp;&amp;amp; &lt;br /&gt;
+ pip install -r requirements.txt &amp;amp;&amp;amp; &lt;br /&gt;
+ pip install elasticsearch==7.0.0
+FROM node:alpine
+#LABEL maintainer=”BitSensor &lt;a href=&quot;mailto:dev@bitsensor.io&quot;&gt;dev@bitsensor.io&lt;/a&gt;”&lt;/p&gt;
+    &lt;h1 id=&quot;set-timezone-for-this-container&quot;&gt;Set timezone for this container&lt;/h1&gt;
+    &lt;p&gt;ENV TZ Etc/UTC&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;RUN apk add –update –no-cache curl tzdata python3 make libmagic
+COPY –from=pyea /usr/local/lib/python3.6/site-packages /usr/lib/python3.6/site-packages
+#COPY –from=pyea /usr/lib/python3.6/site-packages /usr/lib/python3.6/site-packages
+COPY –from=pyea /opt/elastalert /opt/elastalert
+COPY –from=pyea /usr/local/bin/elastalert* /usr/bin/
+WORKDIR /opt/elastalert-server
+COPY . /opt/elastalert-server
+#RUN mkdir -p /usr/local/lib/python3.7 /usr/lib/python3.7 &amp;amp;&amp;amp; \&lt;/p&gt;
+&lt;h1 id=&quot;cp-usrlocallibpython36site-packages-usrlocallibpython37site-packages&quot;&gt;cp /usr/local/lib/python3.6/site-packages /usr/local/lib/python3.7/site-packages\&lt;/h1&gt;
+&lt;h1 id=&quot;cp-usrlocallibpython36site-packages-usrlibpython37&quot;&gt;cp /usr/local/lib/python3.6/site-packages /usr/lib/python3.7&lt;/h1&gt;
+&lt;p&gt;RUN ln -s /usr/bin/python3 /usr/bin/python
+RUN npm install –production –quiet
+COPY config/elastalert.yaml /opt/elastalert/config.yaml
+COPY config/elastalert-test.yaml /opt/elastalert/config-test.yaml
+COPY config/config.json config/config.json
+COPY rule_templates/ /opt/elastalert/rule_templates
+COPY elastalert_modules/ /opt/elastalert/elastalert_modules&lt;/p&gt;
+&lt;h1 id=&quot;add-default-rules-directory&quot;&gt;Add default rules directory&lt;/h1&gt;
+&lt;h1 id=&quot;set-permission-as-unpriviledged-user-10001000-compatible-with-kubernetes&quot;&gt;Set permission as unpriviledged user (1000:1000), compatible with Kubernetes&lt;/h1&gt;
+&lt;p&gt;RUN mkdir -p /opt/elastalert/rules/ /opt/elastalert/server_data/tests/ &lt;br /&gt;
+    &amp;amp;&amp;amp; chown -R node:node /opt
+USER node
+EXPOSE 3030
+ENTRYPOINT [“npm”, “start”]&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;2. 制作镜像：docker build --no-cache  -t   image-name  .
+注：build的时候可能会报layer找不到的错误，再build一次就可以了（再次build时不要加--no-cache）（目前没有细跟原因）
+3. 运行
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;docker run -d -p 3030:3030 -p 3333:3333 &lt;br /&gt;
+    -v &lt;code class=&quot;highlighter-rouge&quot;&gt;pwd&lt;/code&gt;/config/elastalert.yaml:/opt/elastalert/config.yaml &lt;br /&gt;
+    -v &lt;code class=&quot;highlighter-rouge&quot;&gt;pwd&lt;/code&gt;/config/elastalert-test.yaml:/opt/elastalert/config-test.yaml &lt;br /&gt;
+    -v &lt;code class=&quot;highlighter-rouge&quot;&gt;pwd&lt;/code&gt;/config/config.json:/opt/elastalert-server/config/config.json &lt;br /&gt;
+    -v &lt;code class=&quot;highlighter-rouge&quot;&gt;pwd&lt;/code&gt;/rules:/opt/elastalert/rules &lt;br /&gt;
+    -v &lt;code class=&quot;highlighter-rouge&quot;&gt;pwd&lt;/code&gt;/rule_templates:/opt/elastalert/rule_templates &lt;br /&gt;
+    –net=”host” &lt;br /&gt;
+    –name elastalert images-name&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt; 通过docker logs elastalert -f 查看日之日，如果报错，指定告警级别为dubug查看错误信息
+ 
+4. 主要的配置文件：
+* elastalert.yaml：elastalert配置文件，es相关配置
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;h1 id=&quot;this-is-the-folder-that-contains-the-rule-yaml-files&quot;&gt;This is the folder that contains the rule yaml files&lt;/h1&gt;
+&lt;h1 id=&quot;any-yaml-file-will-be-loaded-as-a-rule&quot;&gt;Any .yaml file will be loaded as a rule&lt;/h1&gt;
+&lt;p&gt;rules_folder: rules&lt;/p&gt;
+&lt;h1 id=&quot;how-often-elastalert-will-query-elasticsearch&quot;&gt;How often ElastAlert will query Elasticsearch&lt;/h1&gt;
+&lt;h1 id=&quot;the-unit-can-be-anything-from-weeks-to-seconds&quot;&gt;The unit can be anything from weeks to seconds&lt;/h1&gt;
+&lt;p&gt;run_every:
+  minutes: 1&lt;/p&gt;
+&lt;h1 id=&quot;elastalert-will-buffer-results-from-the-most-recent&quot;&gt;ElastAlert will buffer results from the most recent&lt;/h1&gt;
+&lt;h1 id=&quot;period-of-time-in-case-some-log-sources-are-not-in-real-time&quot;&gt;period of time, in case some log sources are not in real time&lt;/h1&gt;
+&lt;p&gt;buffer_time:
+  minutes: 15&lt;/p&gt;
+&lt;h1 id=&quot;the-elasticsearch-hostname-for-metadata-writeback&quot;&gt;The Elasticsearch hostname for metadata writeback&lt;/h1&gt;
+&lt;h1 id=&quot;note-that-every-rule-can-have-its-own-elasticsearch-host&quot;&gt;Note that every rule can have its own Elasticsearch host&lt;/h1&gt;
+&lt;p&gt;es_host: 10.216.6.76&lt;/p&gt;
+&lt;h1 id=&quot;the-elasticsearch-port&quot;&gt;The Elasticsearch port&lt;/h1&gt;
+&lt;p&gt;es_port: 9200
+es_username: tfmaq
+es_password: 4152adc2a11cb182c014bc95&lt;/p&gt;
+&lt;h1 id=&quot;the-index-on-es_host-which-is-used-for-metadata-storage&quot;&gt;The index on es_host which is used for metadata storage&lt;/h1&gt;
+&lt;h1 id=&quot;this-can-be-a-unmapped-index-but-it-is-recommended-that-you-run&quot;&gt;This can be a unmapped index, but it is recommended that you run&lt;/h1&gt;
+&lt;h1 id=&quot;elastalert-create-index-to-set-a-mapping&quot;&gt;elastalert-create-index to set a mapping&lt;/h1&gt;
+&lt;p&gt;writeback_index: hihi_test
+#writeback_alias: elastalert_alerts&lt;/p&gt;
+&lt;h1 id=&quot;if-an-alert-fails-for-some-reason-elastalert-will-retry&quot;&gt;If an alert fails for some reason, ElastAlert will retry&lt;/h1&gt;
+&lt;h1 id=&quot;sending-the-alert-until-this-time-period-has-elapsed&quot;&gt;sending the alert until this time period has elapsed&lt;/h1&gt;
+&lt;p&gt;alert_time_limit:
+  days: 2&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;* config.json：elastalert server的配置文件
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;{
+  “appName”: “elastalert-server”,
+  “port”: 3030,
+  “wsport”: 3333,
+  “elastalertPath”: “/opt/elastalert”,
+  “verbose”: false,
+  “es_debug”: false,
+  “debug”: false,
+  “rulesPath”: {
+    “relative”: true,
+    “path”: “/rules”             # 通过kibana插件创建的配置文件都存在这
+  },
+  “templatesPath”: {
+    “relative”: true,
+    “path”: “/rule_templates”
+  },
+  “es_host”: “10.216.6.76”,      # es ip
+  “es_port”: 9200,               # es 端口
+  “writeback_index”: “hihi_test” # 监控的esindex
+}&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;* rules：所有报警规则的配置文件都存在着,test-rule.yaml
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;es_host: 10.216.6.76&lt;/p&gt;
+
+&lt;p&gt;es_port: 9200&lt;/p&gt;
+
+&lt;p&gt;es_username: tfmaq
+es_password: 4152adc2a11cb182c014bc952xxx
+name: Example frequency rule 2&lt;/p&gt;
+
+&lt;p&gt;type: frequency&lt;/p&gt;
+
+&lt;p&gt;index: hihi-test&lt;/p&gt;
+
+&lt;p&gt;num_events: 5&lt;/p&gt;
+
+&lt;p&gt;timeframe:
+  hours: 4&lt;/p&gt;
+
+&lt;p&gt;filter:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;query:
+ query_string:
+   query: “type:access”  # 查询规则根据日志，自行配置
+   query: “message:error”  #&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;alert:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;“email”&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;email:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;“zhangzhifei@360.cn”
+```&lt;/li&gt;
+  &lt;li&gt;详细的配置规则大家看官方文档，照着我这么配置先把告警发出来
+    &lt;ol&gt;
+      &lt;li&gt;安装kibana
+按照网关按即可，版本要对上&lt;a href=&quot;https://github.com/bitsensor/elastalert-kibana-plugin&quot;&gt;https://github.com/bitsensor/elastalert-kibana-plugin&lt;/a&gt;
+        &lt;h1 id=&quot;kibana展示&quot;&gt;kibana展示&lt;/h1&gt;
+        &lt;p&gt;kibana插件如下：
+&lt;img src=&quot;https://upload-images.jianshu.io/upload_images/14774548-28d28f3c2e2a7876.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240&quot; alt=&quot;image.png&quot; /&gt;
+custom_frequency是启服务之前创建的配置文件，test和test2是通过kibana dashboard创建。用户可以通过“创建”-“测试”-“保存”这一流程新建alert rules 和我们的hulk容器上的自定义告警流程差不多
+&lt;img src=&quot;https://upload-images.jianshu.io/upload_images/14774548-ca24e86e65dfb74a.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240&quot; alt=&quot;image.png&quot; /&gt;&lt;/p&gt;
+        &lt;h1 id=&quot;参考&quot;&gt;参考&lt;/h1&gt;
+        &lt;p&gt;&lt;a href=&quot;https://github.com/bitsensor/elastalert&quot;&gt;https://github.com/bitsensor/elastalert&lt;/a&gt;&lt;/p&gt;
+      &lt;/li&gt;
+    &lt;/ol&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://github.com/bitsensor/elastalert-kibana-plugin&quot;&gt;https://github.com/bitsensor/elastalert-kibana-plugin&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://github.com/Yelp/elastalert&quot;&gt;https://github.com/Yelp/elastalert&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://elastalert.readthedocs.io/en/latest/&quot;&gt;https://elastalert.readthedocs.io/en/latest/&lt;/a&gt;&lt;/p&gt;
+
+</description>
+        <pubDate>Fri, 18 Oct 2019 00:00:00 +0800</pubDate>
+        <link>http://localhost:5555/2019/10/18/ES%E5%91%8A%E8%AD%A6%E4%B9%8BElastAlert%E5%85%A5%E9%97%A8%E6%95%99%E7%A8%8B(%E5%AE%B9%E5%99%A8%E9%83%A8%E7%BD%B2)/</link>
+        <guid isPermaLink="true">http://localhost:5555/2019/10/18/ES%E5%91%8A%E8%AD%A6%E4%B9%8BElastAlert%E5%85%A5%E9%97%A8%E6%95%99%E7%A8%8B(%E5%AE%B9%E5%99%A8%E9%83%A8%E7%BD%B2)/</guid>
         
         
       </item>
