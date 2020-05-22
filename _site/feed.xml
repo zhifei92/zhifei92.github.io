@@ -5,8 +5,8 @@
     <description>这是张志飞的个人博客，目前刚开始使用，希望和大家分享一些有价值的文章，一起交流学习</description>
     <link>http://localhost:5555/</link>
     <atom:link href="http://localhost:5555/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Sat, 23 May 2020 03:40:39 +0800</pubDate>
-    <lastBuildDate>Sat, 23 May 2020 03:40:39 +0800</lastBuildDate>
+    <pubDate>Sat, 23 May 2020 03:43:45 +0800</pubDate>
+    <lastBuildDate>Sat, 23 May 2020 03:43:45 +0800</lastBuildDate>
     <generator>Jekyll v4.0.1</generator>
     
       <item>
@@ -1214,13 +1214,13 @@ ENTRYPOINT [&quot;npm&quot;, &quot;start&quot;]
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
 
 &lt;ol&gt;
-  &lt;li&gt;
-    &lt;p&gt;制作镜像：docker build –no-cache  -t   image-name  .
-注：build的时候可能会报layer找不到的错误，再build一次就可以了（再次build时不要加–no-cache）（目前没有细跟原因）&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;运行&lt;/p&gt;
-  &lt;/li&gt;
+  &lt;li&gt;制作镜像：docker build –no-cache  -t   image-name  .&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;注：build的时候可能会报layer找不到的错误，再build一次就可以了（再次build时不要加–no-cache）（目前没有细跟原因）&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;运行&lt;/li&gt;
 &lt;/ol&gt;
 
 &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;docker run -d -p 3030:3030 -p 3333:3333 \
@@ -1234,6 +1234,7 @@ ENTRYPOINT [&quot;npm&quot;, &quot;start&quot;]
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
 
 &lt;p&gt;通过docker logs elastalert -f 查看日之日，如果报错，指定告警级别为dubug查看错误信息&lt;/p&gt;
+
 &lt;ol&gt;
   &lt;li&gt;主要的配置文件：&lt;/li&gt;
 &lt;/ol&gt;
@@ -1242,7 +1243,8 @@ ENTRYPOINT [&quot;npm&quot;, &quot;start&quot;]
   &lt;li&gt;elastalert.yaml：elastalert配置文件，es相关配置&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# This is the folder that contains the rule yaml files
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;
+# This is the folder that contains the rule yaml files
 # Any .yaml file will be loaded as a rule
 rules_folder: rules
 # How often ElastAlert will query Elasticsearch
@@ -1302,7 +1304,8 @@ alert_time_limit:
   &lt;li&gt;rules：所有报警规则的配置文件都存在着,test-rule.yaml&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;es_host: 10.216.6.76
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;
+es_host: 10.216.6.76
 
 es_port: 9200
 
@@ -1348,6 +1351,7 @@ email:
 &lt;img src=&quot;https://upload-images.jianshu.io/upload_images/14774548-28d28f3c2e2a7876.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240&quot; alt=&quot;image.png&quot; /&gt;
 custom_frequency是启服务之前创建的配置文件，test和test2是通过kibana dashboard创建。用户可以通过“创建”-“测试”-“保存”这一流程新建alert rules 和我们的hulk容器上的自定义告警流程差不多
 &lt;img src=&quot;https://upload-images.jianshu.io/upload_images/14774548-ca24e86e65dfb74a.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240&quot; alt=&quot;image.png&quot; /&gt;&lt;/p&gt;
+
 &lt;h1 id=&quot;参考&quot;&gt;参考&lt;/h1&gt;
 
 &lt;p&gt;&lt;a href=&quot;https://github.com/bitsensor/elastalert&quot;&gt;https://github.com/bitsensor/elastalert&lt;/a&gt;&lt;/p&gt;
