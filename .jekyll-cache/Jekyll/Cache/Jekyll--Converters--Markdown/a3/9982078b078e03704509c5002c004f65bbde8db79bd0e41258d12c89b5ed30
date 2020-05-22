@@ -1,4 +1,4 @@
-<h1 id="概述">概述</h1>
+I"l'<h1 id="概述">概述</h1>
 <p>        我们部署的版本是此篇文章发布时ElastAlert（V0.2.1）、ElastAlert server（3.0.0-beta.0） 、elastalert-kibana-plugin（1.1.0）的最新版本。es和kibana的版本是7.2.0。ES和kibana部署不是本篇的重点，这里不做介绍。
         入正题之前得先说下ES，Elasticsearch 是一个分布式、可扩展、实时的搜索与数据分析引擎。 它能从项目一开始就赋予你的数据以搜索、分析和探索的能力。我们容器服务的日志现在大多数都入到了qbus，然后可以用es消费，通过kibana方便的查看日志。但是负责es的同事和我们都没有支持日志告警，目前是一个短板。X-Pack提供了报警组件Alert，但是这个功能是需要付费，ElastAlert能够完美替代Alert提供的所有功能。ElastAlert目前有6k+star，维护较好很受欢迎，使用python编写，V0.2.0以后使用python3，python2不再维护，以致在虚机物理机部署的坑很多，最终也是以容器的方式成功搭建。因为公司es之后要升级到7.2版本，ElastAlertV0.2.1（最新版本）才对es7支持的很好，elastalert-kibana-plugin最新版本才支持kibana7。</p>
 <h1 id="相关组件">相关组件</h1>
@@ -208,3 +208,4 @@ custom_frequency是启服务之前创建的配置文件，test和test2是通过k
 
 <p><a href="https://elastalert.readthedocs.io/en/latest/">https://elastalert.readthedocs.io/en/latest/</a></p>
 
+:ET
